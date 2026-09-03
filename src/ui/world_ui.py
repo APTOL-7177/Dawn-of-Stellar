@@ -20,6 +20,8 @@ from src.ui.gauge_renderer import GaugeRenderer
 from src.ui.tcod_display import render_space_background
 from src.ui.field_skill_ui import FieldSkillUI
 from src.ui.ui_renderer import draw_styled_box, DynamicSeparator
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
+from src.ui.visual_tokens import rgb
 from src.core.logger import get_logger, Loggers
 from src.audio.audio_manager import play_bgm
 
@@ -75,6 +77,7 @@ class WorldUI:
         # 메시지 로그
         self.messages: List[str] = []
         self.max_messages = 20  # 로그 패널이 커졌으므로 더 많은 메시지 표시
+        self.log_scroll_offset = 0
 
         # 상태
         self.quit_requested = False
@@ -104,6 +107,9 @@ class WorldUI:
         self.mouse_screen_x = 0
         self.mouse_screen_y = 0
         self.mouse_hover_active = False  # 마우스가 맵 영역 위에 있는지
+        self.pointer_hover_world_cell: Optional[Tuple[int, int]] = None
+        self.pointer_hover_detail: Optional[str] = None
+        self.pointer_destination: Optional[Tuple[int, int]] = None
         
         # 분수대 사용 여부 (마을 방문마다 리셋)
         self.fountain_used = False
@@ -174,6 +180,153 @@ class WorldUI:
             for msg in self.inventory.pending_loot_messages:
                 self.add_message(msg)
             self.inventory.pending_loot_messages.clear()
+
+    def handle_pointer_event(self, event: PointerEvent, console=None, context=None) -> PointerDispatchResult:
+        self._mouse_sx, self._mouse_sy = event.position.tile
+        self.mouse_screen_x, self.mouse_screen_y = event.position.tile
+
+        match event.kind:
+            case PointerEventKind.HOVER:
+                tooltip = self._update_pointer_hover_detail(event.position.tile)
+                return PointerDispatchResult(event=event, tooltip=tooltip)
+            case PointerEventKind.WHEEL:
+                action = self._handle_pointer_wheel(event)
+                return PointerDispatchResult(event=event, action=action)
+            case PointerEventKind.CLICK:
+                if event.button is PointerButton.RIGHT:
+                    self._close_pointer_overlay()
+                    return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+                if event.button is not PointerButton.LEFT:
+                    return PointerDispatchResult(event=event)
+                action = self._handle_pointer_left_click(event.position.tile, console, context)
+                return PointerDispatchResult(event=event, action=action)
+            case PointerEventKind.DRAG_START | PointerEventKind.DRAG_MOVE | PointerEventKind.DRAG_END:
+                return PointerDispatchResult(event=event, hovered_region_id="map")
+            case unreachable:
+                raise AssertionError(f"unreachable pointer event kind: {unreachable!r}")
+
+    def _handle_pointer_wheel(self, event: PointerEvent) -> Optional[GameAction]:
+        if event.wheel_delta == 0:
+            return None
+        if not self._is_log_cell(event.position.tile):
+            return None
+        action = GameAction.PAGE_UP if event.wheel_delta > 0 else GameAction.PAGE_DOWN
+        max_scroll = max(0, len(self.messages) - self._world_log_visible_lines())
+        if action is GameAction.PAGE_UP:
+            self.log_scroll_offset = min(self.log_scroll_offset + 3, max_scroll)
+        else:
+            self.log_scroll_offset = max(0, self.log_scroll_offset - 3)
+        return action
+
+    def _handle_pointer_left_click(self, tile: Tuple[int, int], console, context) -> Optional[GameAction]:
+        world_cell = self._world_cell_from_screen_cell(tile)
+        if world_cell is None:
+            return None
+        self.pointer_destination = world_cell
+        action = self._action_towards_world_cell(world_cell)
+        if action is not None:
+            self.handle_input(action, console, context)
+        return action or GameAction.CONFIRM
+
+    def _close_pointer_overlay(self) -> None:
+        if getattr(self, "field_skill_ui", None) and self.field_skill_ui.is_active:
+            self.field_skill_ui.is_active = False
+        if getattr(self, "show_minimap", False):
+            self.show_minimap = False
+        if getattr(self, "quit_confirm_mode", False):
+            self.quit_confirm_mode = False
+        if getattr(self, "magic_circle_confirm_mode", False):
+            self.magic_circle_confirm_mode = False
+            self.magic_circle_tile = None
+        if getattr(self, "chat_input_active", False):
+            self.chat_input_active = False
+            self.chat_input_text = ""
+
+    def _update_pointer_hover_detail(self, tile: Tuple[int, int]) -> Optional[str]:
+        world_cell = self._world_cell_from_screen_cell(tile)
+        self.pointer_hover_world_cell = world_cell
+        self.mouse_hover_active = world_cell is not None
+        if world_cell is None:
+            self.pointer_hover_detail = None
+            return None
+
+        world_x, world_y = world_cell
+        tile_info = self._tile_detail_at(world_x, world_y)
+        enemy = self._enemy_at(world_x, world_y)
+        detail = tile_info if enemy is None else f"{tile_info} | {getattr(enemy, 'name', '???')}"
+        self.pointer_hover_detail = detail
+        return detail
+
+    def _tile_detail_at(self, world_x: int, world_y: int) -> str:
+        dungeon = self.exploration.dungeon
+        tile = dungeon.get_tile(world_x, world_y)
+        if tile is None:
+            return f"타일 ({world_x}, {world_y})"
+        try:
+            tile_name, tile_desc = get_tile_info(tile.tile_type)
+        except (KeyError, TypeError, AttributeError):
+            tile_name = getattr(tile.tile_type, "value", str(tile.tile_type))
+            tile_desc = ""
+        suffix = f" - {tile_desc}" if tile_desc else ""
+        return f"{tile_name} ({world_x}, {world_y}){suffix}"
+
+    def _enemy_at(self, world_x: int, world_y: int):
+        for enemy in getattr(self.exploration, "enemies", []):
+            if getattr(enemy, "x", None) == world_x and getattr(enemy, "y", None) == world_y:
+                return enemy
+        return None
+
+    def _world_cell_from_screen_cell(self, tile: Tuple[int, int]) -> Optional[Tuple[int, int]]:
+        screen_x, screen_y = tile
+        if screen_x < 0 or screen_y < 5 or screen_y >= 40 or screen_x >= self.screen_width:
+            return None
+        camera_x, camera_y = self._current_camera_cell()
+        world_x = camera_x + screen_x
+        world_y = camera_y + screen_y - 5
+        dungeon = self.exploration.dungeon
+        if world_x < 0 or world_y < 0 or world_x >= dungeon.width or world_y >= dungeon.height:
+            return None
+        return (world_x, world_y)
+
+    def _current_camera_cell(self) -> Tuple[int, int]:
+        camera_x = getattr(self, "_camera_x", None)
+        camera_y = getattr(self, "_camera_y", None)
+        if camera_x is not None and camera_y is not None:
+            return int(camera_x), int(camera_y)
+        player = self.exploration.player
+        return max(0, player.x - 40), max(0, player.y - 20)
+
+    def _action_towards_world_cell(self, world_cell: Tuple[int, int]) -> Optional[GameAction]:
+        player = self.exploration.player
+        dx = world_cell[0] - player.x
+        dy = world_cell[1] - player.y
+        step_x = 0 if dx == 0 else (1 if dx > 0 else -1)
+        step_y = 0 if dy == 0 else (1 if dy > 0 else -1)
+        direction_actions = {
+            (0, -1): GameAction.MOVE_UP,
+            (0, 1): GameAction.MOVE_DOWN,
+            (-1, 0): GameAction.MOVE_LEFT,
+            (1, 0): GameAction.MOVE_RIGHT,
+            (-1, -1): GameAction.MOVE_UP_LEFT,
+            (1, -1): GameAction.MOVE_UP_RIGHT,
+            (-1, 1): GameAction.MOVE_DOWN_LEFT,
+            (1, 1): GameAction.MOVE_DOWN_RIGHT,
+        }
+        return direction_actions.get((step_x, step_y))
+
+    def _is_log_cell(self, tile: Tuple[int, int]) -> bool:
+        screen_x, screen_y = tile
+        party_x = self.screen_width - 30
+        log_panel_x = 2
+        log_panel_width = party_x - log_panel_x - 4
+        log_panel_y = self.screen_height - self._world_log_visible_lines() - 4
+        return log_panel_x - 1 <= screen_x <= log_panel_x + log_panel_width and log_panel_y - 1 <= screen_y <= log_panel_y + self._world_log_visible_lines()
+
+    def _world_log_visible_lines(self) -> int:
+        party = getattr(getattr(self.exploration, "player", None), "party", []) or []
+        party_count = min(4, len(party))
+        total_height = 2 + (party_count * 4) + 4
+        return max(1, (total_height // 2) - 1)
 
     def handle_input(self, action: GameAction, console=None, context=None, key_event=None) -> bool:
         # 대기 중인 아이템 획득 메시지 표시
@@ -1342,9 +1495,9 @@ class WorldUI:
                     self.render(console, render_ctx=context)
                     context.present(console)
 
-                    # LootUI 표시
+                    # LootUI 표시 (멀티플레이: exploration 전달하여 전투 감지 가능)
                     logger.info("LootUI 표시 시도...")
-                    show_loot_screen(console, context, items, self.inventory)
+                    show_loot_screen(console, context, items, self.inventory, exploration=self.exploration)
                     logger.info("LootUI 종료됨")
 
                     # 획득 아이템 로그 표시 (pending_loot_messages에서 자동 처리)
@@ -2342,7 +2495,7 @@ class WorldUI:
 
                 # HP 바
                 hp_ratio = hp / max_hp if max_hp > 0 else 0
-                hp_color = (50, 255, 50) if hp_ratio > 0.5 else (255, 255, 0) if hp_ratio > 0.2 else (255, 50, 50)
+                hp_color = rgb("status.hp_high") if hp_ratio > 0.5 else rgb("status.hp_mid") if hp_ratio > 0.2 else rgb("status.hp_low")
                 console.print(7, y, f"HP: {hp}/{max_hp}", fg=hp_color)
                 # HP 바 그래프
                 bar_width = 20
@@ -2361,7 +2514,7 @@ class WorldUI:
 
                 # 상태
                 if not alive:
-                    console.print(7, y, "상태: 전투불능", fg=(255, 50, 50))
+                    console.print(7, y, "상태: 전투불능", fg=rgb("threat.critical"))
                 else:
                     console.print(7, y, "상태: 정상", fg=(100, 255, 100))
                 y += 2
@@ -2790,6 +2943,8 @@ class WorldUI:
         # 적 위치 표시
         camera_x = max(0, player.x - 40)
         camera_y = max(0, player.y - 20)
+        self._camera_x = camera_x
+        self._camera_y = camera_y
 
         # 현재 시야 반경 계산 (FOV 시스템과 동일하게)
         vision_radius = self.exploration.fov_system.default_radius
@@ -2934,7 +3089,7 @@ class WorldUI:
                     char = "@"
                     
                     if is_dead:
-                        player_color = (100, 100, 100) # 회색 (유령)
+                        player_color = rgb("state.disabled") # 유령
                         char = "@" # 유령 아이콘 대신 @ 사용 (회색)
                     
                     console.print(screen_x, screen_y, char, fg=player_color)
@@ -3002,9 +3157,9 @@ class WorldUI:
             key_items.append(("Z/E", "요리솥 사용"))
 
         # 한 줄로 렌더링 (key=노란색, 설명=회색, 구분자=어두운 회색)
-        KEY_COLOR = (255, 220, 100)
-        DESC_COLOR = (160, 160, 160)
-        SEP_COLOR = (100, 100, 100)
+        KEY_COLOR = rgb("accent.amber")
+        DESC_COLOR = rgb("text.secondary")
+        SEP_COLOR = rgb("line.subtle")
 
         render_x = 2
         render_y = self.screen_height - 2
@@ -3116,8 +3271,8 @@ class WorldUI:
     ):
         """타일 툴팁 박스를 콘솔에 렌더링"""
         # 색상 상수 (combat_tooltip 스타일)
-        BG = (15, 15, 30)
-        BORDER = (120, 140, 180)
+        BG = rgb("state.tooltip")
+        BORDER = rgb("line.strong")
 
         # 내용 조립: (텍스트, 색상) 리스트
         lines: list = []
@@ -3261,8 +3416,8 @@ class WorldUI:
         if ty < 0:
             ty = 0
 
-        BG = (10, 10, 25)
-        BORDER = (100, 130, 170)
+        BG = rgb("state.tooltip")
+        BORDER = rgb("line.strong")
 
         # 배경
         for dy in range(tooltip_h):
@@ -3619,12 +3774,12 @@ class WorldUI:
         mini_x = (self.screen_width - mini_w) // 2
         mini_y = (self.screen_height - mini_h) // 2
 
-        # 배경 프레임
+        # 배경 프레임 — semantic 토큰 (패널/보더)
         console.draw_frame(
             mini_x, mini_y, mini_w, mini_h,
             title=" 월드 맵 [N: 닫기] ",
-            fg=(200, 220, 255),
-            bg=(10, 10, 25),
+            fg=rgb("line.default"),
+            bg=rgb("surface.panel"),
         )
 
         # 지역 색상
@@ -3726,13 +3881,17 @@ class WorldUI:
             log_panel_width + 2,
             log_panel_height + 2,
             title="로그",
-            fg=(150, 150, 150),
-            bg=(0, 0, 0)
+            fg=rgb("line.default"),
+            bg=rgb("surface.panel")
         )
 
         # 로그 메시지 표시 (아래에서 위로 최신 메시지부터)
         max_lines = log_panel_height - 1  # 테두리 제외
-        visible_messages = self.messages[-max_lines:] if len(self.messages) > max_lines else self.messages
+        max_scroll = max(0, len(self.messages) - max_lines)
+        self.log_scroll_offset = max(0, min(self.log_scroll_offset, max_scroll))
+        start_idx = max(0, len(self.messages) - max_lines - self.log_scroll_offset)
+        end_idx = len(self.messages) - self.log_scroll_offset
+        visible_messages = self.messages[start_idx:end_idx]
 
         for i, msg in enumerate(visible_messages):
             # 메시지가 패널 너비를 초과하면 자르기
@@ -3742,13 +3901,18 @@ class WorldUI:
             if msg.startswith('릴리:'):
                 msg_color = (255, 200, 255)
             else:
-                msg_color = (200, 200, 200)
+                msg_color = rgb("text.secondary")
             console.print(
                 log_panel_x,
                 log_panel_y + i,
                 msg,
                 fg=msg_color
             )
+        if len(self.messages) > max_lines:
+            if self.log_scroll_offset < max_scroll:
+                console.print(log_panel_x + log_panel_width - 1, log_panel_y + max_lines - 1, "▼", fg=rgb("accent.cyan"))
+            if self.log_scroll_offset > 0:
+                console.print(log_panel_x + log_panel_width - 1, log_panel_y, "▲", fg=rgb("accent.cyan"))
 
     def _render_quit_confirm(self, console: tcod.console.Console):
         """종료 확인 대화상자"""
@@ -4135,13 +4299,24 @@ def run_exploration(
 
         # 적 이동 업데이트
         if hasattr(exploration, '_move_all_enemies'):
+            # 멀티플레이 클라이언트 여부 판별
+            _is_mp_client = (hasattr(exploration, 'is_multiplayer') and exploration.is_multiplayer
+                             and hasattr(exploration, 'is_host') and not exploration.is_host)
+
             # 시간 기반 이동 - 각 적이 자신의 move_interval에 따라 이동
             exploration._move_all_enemies()
 
+            # 멀티플레이 클라이언트: 적 충돌은 호스트에서만 처리 (독자 전투 방지)
+            if _is_mp_client:
+                if hasattr(exploration, 'collision_enemy') and exploration.collision_enemy:
+                    logger.info(f"[전투 스킵] 멀티플레이 클라이언트 - collision_enemy 초기화: {getattr(exploration.collision_enemy, 'name', 'Unknown')}")
+                exploration.collision_enemy = None
+
             # 시간 기반 이동 중 적과 플레이어가 충돌했는지 확인
             if hasattr(exploration, 'collision_enemy') and exploration.collision_enemy:
+
                 collided_enemy = exploration.collision_enemy
-                
+
                 # 도망 쿨다운 체크 (이중 안전장치)
                 import time
                 enemy_id = id(collided_enemy)
@@ -4151,7 +4326,7 @@ def run_exploration(
                         logger.debug(f"[전투 스킵] {collided_enemy.name} 도망 쿨다운 중 - 전투 무시")
                         exploration.collision_enemy = None  # 충돌 초기화
                         return
-                
+
                 logger.info(f"[전투 트리거] 시간 기반 이동 중 충돌: {collided_enemy.name}")
 
                 # 전투 트리거: 충돌한 적과 주변 적들 수집
@@ -4292,6 +4467,12 @@ def run_exploration(
             # tcod 이벤트는 non-blocking으로 변경
             events = tcod.event.get()  # wait 대신 get 사용
             for event in events:
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    pointer_result = ui.handle_pointer_event(pointer_event, console, context)
+                    if pointer_result.action is not None:
+                        break
+                    continue
                 result = unified_input_handler.process_tcod_event(event)
                 if isinstance(event, tcod.event.KeyDown):
                     key_event = event
@@ -4358,7 +4539,20 @@ def run_exploration(
                                 # player_positions도 업데이트
                                 if hasattr(exploration, 'player_positions'):
                                     exploration.player_positions[local_id] = (exploration.player.x, exploration.player.y)
-                                    
+
+                                # 새 층 좌표계 기준으로 이동 인가 기준점 재설정
+                                # (미재인가 시 첫 이동이 rejection rollback 무한 루프 유발)
+                                reauth = getattr(exploration, '_reauthorize_player_position', None)
+                                if callable(reauth):
+                                    reauth(local_id)
+                                    logger.info(f"📍 클라이언트 위치 재인가: ({exploration.player.x}, {exploration.player.y})")
+
+                                # 이동 타임스탬프 기준점도 새 층 시점으로 리셋
+                                # (이전 층 타임스탬프가 남으면 새 층 첫 이동이 stale 거부됨)
+                                local_player = exploration.session.players[local_id]
+                                if hasattr(local_player, 'last_movement_timestamp'):
+                                    local_player.last_movement_timestamp = 0.0
+
                                 logger.info(f"📍 클라이언트 세션 위치 업데이트: ({exploration.player.x}, {exploration.player.y})")
 
                         # FOV 업데이트
@@ -4373,6 +4567,10 @@ def run_exploration(
                     network_manager.pending_dungeon_data = None
                 except Exception as e:
                     logger.error(f"클라이언트 던전 업데이트 실패: {e}", exc_info=True)
+
+        # 멀티플레이 호스트: 탐험 중 파티 상태 동기화 (0.5초 간격)
+        if hasattr(exploration, 'sync_exploration_party_state'):
+            exploration.sync_exploration_party_state()
 
         # 멀티플레이 클라이언트: 대기 중인 전투 즉시 진입 (매 프레임 폴링)
         # _pending_client_combat은 move_player 호출 없이도 즉시 처리되어야 한다.

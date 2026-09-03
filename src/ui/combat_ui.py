@@ -26,6 +26,9 @@ from src.audio import play_sfx, play_bgm
 from src.ui.combat_tooltip import render_tooltip
 from src.ui.effects import trigger_skill_effect, trigger_status_effect, trigger_item_effect
 from src.ui.ui_renderer import draw_styled_box, SelectionHighlight
+from src.ui.pointer import PointerButton, PointerDispatchResult, PointerEvent, PointerEventKind
+from src.ui.visual_tokens import rgb
+from src.ui.visual_tokens import get_color as token_color
 
 
 logger = get_logger(Loggers.UI)
@@ -134,6 +137,7 @@ class CombatUI:
         self.skill_menu: Optional[CursorMenu] = None
         # 과부하 사용 여부 선택 (스킬 ID별)
         self.overload_selection: Dict[str, bool] = {}
+        self.variant_selection: Dict[str, str] = {}  # skill_id → 변형 키 (t_082c6a99)
         self.item_menu: Optional[CursorMenu] = None  # 아이템 메뉴
         self.target_cursor = 0
         self.current_target_list: List[Any] = []  # 현재 타겟 선택 리스트
@@ -199,6 +203,7 @@ class CombatUI:
         self._mouse_cell: Optional[Tuple[int, int]] = None  # 마우스 셀 좌표 (x, y)
         self._hover_character: Optional[Any] = None  # 마우스 호버 중인 캐릭터
         self._hover_cell: Optional[Tuple[int, int]] = None  # 호버 캐릭터의 기준 셀 좌표
+        self.pointer_hover_detail: Optional[str] = None
 
         # 이펙트 매니저 참조 (PygameDisplay에서 주입)
         self.effect_manager: Optional[Any] = None
@@ -607,6 +612,9 @@ class CombatUI:
             # 과부하 사용 여부 표기
             name = self._decorate_overload_name(skill, name)
 
+            # 변형 파생 스킬: 현재 선택 속성 표기 (t_082c6a99)
+            name = self._decorate_variant_name(skill, name)
+
             desc = getattr(skill, 'description', '')
 
             # 사용 불가 시 이유 추가
@@ -684,6 +692,56 @@ class CombatUI:
         if not hasattr(skill, "metadata") or skill.metadata is None:
             skill.metadata = {}
         skill.metadata["_use_overload"] = bool(choice)
+
+    # ── variants 파생 프리미티브 UX (t_082c6a99) ──────────────────
+
+    def _get_variant_selection(self, skill: Any) -> Optional[str]:
+        """스킬의 현재 변형 선택 (skill_id별 저장, 기본값 variant_default)"""
+        metadata = getattr(skill, "metadata", {}) or {}
+        if not metadata.get("variant_capable"):
+            return None
+        options = metadata.get("variant_options") or {}
+        if not options:
+            return None
+        current = self.variant_selection.get(skill.skill_id)
+        if current not in options:
+            current = metadata.get("variant_default")
+            self.variant_selection[skill.skill_id] = current
+        return current
+
+    def _cycle_variant_selection(self, skill: Any, right: bool = True) -> bool:
+        """좌/우 방향키로 속성 변형 순환. 변경 여부 반환."""
+        metadata = getattr(skill, "metadata", {}) or {}
+        options = metadata.get("variant_options") or {}
+        if not metadata.get("variant_capable") or not options:
+            return False
+        keys = list(options.keys())
+        current = self._get_variant_selection(skill)
+        idx = keys.index(current) if current in keys else 0
+        new_idx = (idx + (1 if right else -1)) % len(keys)
+        new_key = keys[new_idx]
+        changed = new_key != current
+        self.variant_selection[skill.skill_id] = new_key
+        return changed
+
+    def _decorate_variant_name(self, skill: Any, base_name: str) -> str:
+        """variant_capable 스킬 이름에 현재 변형 라벨을 덧붙임"""
+        key = self._get_variant_selection(skill)
+        if key is None:
+            return base_name
+        metadata = getattr(skill, "metadata", {}) or {}
+        options = metadata.get("variant_options") or {}
+        label = (options.get(key) or {}).get("label", key)
+        return f"{base_name} · {label}"
+
+    def _apply_variant_choice(self, skill: Any) -> None:
+        """선택된 변형을 스킬 메타데이터에 반영 (한 번 실행용)"""
+        key = self._get_variant_selection(skill)
+        if key is None:
+            return
+        if not hasattr(skill, "metadata") or skill.metadata is None:
+            skill.metadata = {}
+        skill.metadata["_selected_variant"] = key
 
     def _create_item_menu(self) -> CursorMenu:
         """아이템 메뉴 생성"""
@@ -975,6 +1033,10 @@ class CombatUI:
             remote_key = f"{actor_pid}:{actor_id}"
             self._pending_remote_actors.pop(remote_key, None)
 
+        # 원격 플레이어 불릿타임 해제
+        if actor_pid and hasattr(self.combat_manager, 'atb') and hasattr(self.combat_manager.atb, 'set_player_selecting'):
+            self.combat_manager.atb.set_player_selecting(actor_pid, False)
+
         # 액션 결과 표시
         if isinstance(result, dict):
             self._show_action_result(result)
@@ -1018,13 +1080,30 @@ class CombatUI:
         if self.combat_sync_manager:
             actor = self.combat_sync_manager._find_character_by_id(actor_id)
             if actor:
-                self.current_actor = actor
-                self.action_menu = self._create_action_menu(actor)
-                self.state = CombatUIState.ACTION_MENU
-                self.add_message(f"{actor_name}의 턴!", (100, 255, 255))
-                from src.audio import play_sfx
-                play_sfx("ui", "turn_ready")
-                logger.info(f"[클라이언트] 액션 선택 시작: {actor_name} (ID: {actor_id})")
+                # 이미 다른 캐릭터 행동 선택 중이면 큐에 추가
+                player_input_states = [
+                    CombatUIState.ACTION_MENU, CombatUIState.SKILL_MENU,
+                    CombatUIState.TARGET_SELECT, CombatUIState.ITEM_MENU,
+                    CombatUIState.CARD_SELECT, CombatUIState.POSSIBILITY_SELECT,
+                    CombatUIState.GIMMICK_VIEW, CombatUIState.CHAIN_ABILITY_SELECT,
+                ]
+                if self.current_actor is not None and self.state in player_input_states:
+                    # 현재 선택 중 → 큐에 추가
+                    if not hasattr(self, '_pending_local_turns'):
+                        self._pending_local_turns = []
+                    # 중복 방지
+                    if actor not in self._pending_local_turns and actor != self.current_actor:
+                        self._pending_local_turns.append(actor)
+                        self.add_message(f"{actor_name}의 턴 대기 중!", (200, 255, 200))
+                        logger.info(f"[클라이언트] 액션 선택 큐 추가: {actor_name} (ID: {actor_id})")
+                else:
+                    self.current_actor = actor
+                    self.action_menu = self._create_action_menu(actor)
+                    self.state = CombatUIState.ACTION_MENU
+                    self.add_message(f"{actor_name}의 턴!", (100, 255, 255))
+                    from src.audio import play_sfx
+                    play_sfx("ui", "turn_ready")
+                    logger.info(f"[클라이언트] 액션 선택 시작: {actor_name} (ID: {actor_id})")
             else:
                 logger.warning(f"[클라이언트] 액션 선택 시작 실패: 액터를 찾을 수 없음 ({actor_id})")
 
@@ -1258,6 +1337,26 @@ class CombatUI:
                             self.skill_menu.scroll_offset = prev_scroll
                         self.add_message(f"과부하 {'사용' if desired else '해제'}: {skill.name}", (180, 200, 255))
                         play_sfx("ui", "cursor_move")
+                elif metadata.get("variant_capable"):
+                    # variants 파생 프리미티브: 좌/우로 속성 순환 (t_082c6a99)
+                    changed = self._cycle_variant_selection(skill, right=action == GameAction.MOVE_RIGHT)
+                    if changed:
+                        prev_index = self.skill_menu.cursor_index
+                        prev_scroll = self.skill_menu.scroll_offset
+                        self.skill_menu = self._create_skill_menu(self.current_actor)
+                        if 0 <= prev_index < len(self.skill_menu.items):
+                            self.skill_menu.cursor_index = prev_index
+                            if self.skill_menu.cursor_index < self.skill_menu.scroll_offset:
+                                self.skill_menu.scroll_offset = self.skill_menu.cursor_index
+                            elif self.skill_menu.cursor_index >= self.skill_menu.scroll_offset + self.skill_menu.max_visible_items:
+                                self.skill_menu.scroll_offset = self.skill_menu.cursor_index - self.skill_menu.max_visible_items + 1
+                        else:
+                            self.skill_menu.scroll_offset = prev_scroll
+                        label = self._get_variant_selection(skill)
+                        options = (getattr(skill, "metadata", {}) or {}).get("variant_options", {})
+                        label_text = options.get(label, {}).get("label", label) if isinstance(options, dict) else label
+                        self.add_message(f"{skill.name} → {label_text}", (200, 255, 200))
+                        play_sfx("ui", "cursor_move")
         elif action == GameAction.CONFIRM:
             selected_item = self.skill_menu.get_selected_item()
             if selected_item:
@@ -1278,6 +1377,8 @@ class CombatUI:
                         self.selected_skill = selected_item.value
                         # 과부하 선택 상태를 메타데이터에 반영
                         self._apply_overload_choice(self.selected_skill)
+                        # 변형 선택 상태를 메타데이터에 반영 (t_082c6a99)
+                        self._apply_variant_choice(self.selected_skill)
                         self._start_target_selection()
         elif action == GameAction.CANCEL:
             self.state = CombatUIState.ACTION_MENU
@@ -2231,12 +2332,11 @@ class CombatUI:
         # 멀티플레이 모드 확인 (combat_sync_manager 존재 여부로 판별)
         is_multiplayer = self.combat_sync_manager is not None
 
-        # 호스트 여부 확인
+        # 호스트 여부 확인 (CombatUI 초기화 시 network_manager.is_host로 결정된 값 사용)
         is_host = self.is_mp_host
-        if not is_host and self.session:
-            local_player_id = self._get_local_player_id()
-            if local_player_id and hasattr(self.session, 'host_id'):
-                is_host = self.session.host_id == local_player_id
+
+        if is_multiplayer:
+            logger.debug(f"[_execute_action] MP판정: is_multiplayer={is_multiplayer}, is_host={is_host}, sync_mgr={self.combat_sync_manager is not None}")
 
         # 멀티플레이 모드에서 클라이언트인 경우 호스트로 액션 전송
         # (self.session 체크 제거 - combat_sync_manager 존재가 이미 멀티플레이 보장)
@@ -2247,9 +2347,9 @@ class CombatUI:
                 self.state = CombatUIState.ACTION_MENU
                 return
 
-            actor_id = getattr(self.current_actor, 'id', None)
+            actor_id = self.combat_sync_manager._get_character_id(self.current_actor)
             if not actor_id:
-                logger.error("멀티플레이 액션 실행 실패: 액터 ID를 찾을 수 없습니다.")
+                logger.error(f"멀티플레이 액션 실행 실패: 액터 ID를 찾을 수 없습니다. (name={getattr(self.current_actor, 'name', None)}, id={getattr(self.current_actor, 'id', None)})")
                 self.state = CombatUIState.ACTION_MENU
                 return
 
@@ -2281,8 +2381,23 @@ class CombatUI:
 
             logger.info(f"멀티플레이 액션 요청 전송: {local_player_id} - {actor_id} - {action_type.value if hasattr(action_type, 'value') else action_type}")
 
-            # 클라이언트는 액션 요청 후 ATB 대기 상태로 전환
-            self.state = CombatUIState.WAITING_ATB
+            # 클라이언트: 액션 요청 후 대기 중인 턴이 있으면 바로 전환
+            if hasattr(self, '_pending_local_turns') and self._pending_local_turns:
+                next_actor = self._pending_local_turns.pop(0)
+                if getattr(next_actor, 'is_alive', False):
+                    self.current_actor = next_actor
+                    self.action_menu = self._create_action_menu(next_actor)
+                    self.state = CombatUIState.ACTION_MENU
+                    self.add_message(f"{next_actor.name}의 턴!", (100, 255, 255))
+                    from src.audio import play_sfx
+                    play_sfx("ui", "turn_ready")
+                    logger.info(f"[클라이언트] 큐에서 다음 턴 전환: {next_actor.name}")
+                else:
+                    self.current_actor = None
+                    self.state = CombatUIState.WAITING_ATB
+            else:
+                self.current_actor = None
+                self.state = CombatUIState.WAITING_ATB
 
         else:
             # 싱글플레이 모드 또는 멀티플레이 호스트 (직접 실행)
@@ -2805,6 +2920,7 @@ class CombatUI:
             self.state = CombatUIState.BATTLE_END
 
         # 멀티플레이 호스트: 비차단 원격 대기 타임아웃 처리
+        # (타임아웃 제거는 본 카드 범위를 벗어나므로 HEAD 동작 유지 - t_c10c7a1e 반려 3)
         if self._pending_remote_actors:
             timed_out_keys = []
             for remote_key, (actor, timeout) in list(self._pending_remote_actors.items()):
@@ -3020,7 +3136,12 @@ class CombatUI:
                 elif actor in self.combat_manager.allies:
                     # 플레이어 턴: UI 표시
                     logger.debug(f"플레이어 {actor.name} 턴 처리 - 상태: {self.state.value}")
-                    if self.state == CombatUIState.WAITING_ATB:
+                    # 멀티플레이: 원격 플레이어 캐릭터는 로컬 UI 상태와 무관하게 항상 처리
+                    _actor_pid = getattr(actor, 'player_id', None)
+                    _local_pid = self._get_local_player_id()
+                    _is_remote_actor = (is_multiplayer and _actor_pid and _local_pid
+                                        and _actor_pid != _local_pid)
+                    if _is_remote_actor or self.state == CombatUIState.WAITING_ATB:
                         # 기절/마비/수면 등 행동 불가 상태 확인 (이중 체크)
                         if hasattr(actor, 'status_manager') and not actor.status_manager.can_act():
                             # 행동 불가 상태: 턴 자동 스킵
@@ -4098,13 +4219,13 @@ class CombatUI:
             remaining = boss_timer.get_remaining_time()
             time_str = boss_timer.format_time(remaining)
 
-            # 색상: 1분 이하면 빨간색, 2분 이하면 노란색, 그 외 흰색
+            # 색상: 위협도 토큰 기반 (1분 이하 critical, 2분 이하 warning, 그 외 info)
             if remaining <= 60:
-                timer_color = (255, 50, 50)  # 빨강
+                timer_color = token_color("threat.critical").rgb
             elif remaining <= 120:
-                timer_color = (255, 255, 0)  # 노랑
+                timer_color = token_color("status.warning").rgb
             else:
-                timer_color = (255, 255, 255)  # 흰색
+                timer_color = token_color("status.info").rgb
 
             timer_text = f"⏱ {time_str}"
             timer_x = self.screen_width // 2 - len(timer_text) // 2
@@ -4248,6 +4369,115 @@ class CombatUI:
         """마우스 셀 좌표 업데이트 (외부에서 호출)"""
         self._mouse_cell = (cell_x, cell_y)
 
+    def handle_pointer_event(self, event: PointerEvent) -> PointerDispatchResult:
+        self.update_mouse_cell(*event.position.tile)
+        self._update_hover_character()
+
+        match event.kind:
+            case PointerEventKind.HOVER:
+                tooltip = self._pointer_hover_text()
+                self.pointer_hover_detail = tooltip
+                return PointerDispatchResult(event=event, tooltip=tooltip)
+            case PointerEventKind.WHEEL:
+                if event.wheel_delta == 0:
+                    return PointerDispatchResult(event=event)
+                action = GameAction.PAGE_UP if event.wheel_delta > 0 else GameAction.PAGE_DOWN
+                self.handle_input(action)
+                return PointerDispatchResult(event=event, action=action)
+            case PointerEventKind.CLICK:
+                if event.button is PointerButton.RIGHT:
+                    self.handle_input(GameAction.CANCEL)
+                    return PointerDispatchResult(event=event, action=GameAction.CANCEL)
+                if event.button is not PointerButton.LEFT:
+                    return PointerDispatchResult(event=event)
+                if self._should_block_input():
+                    return PointerDispatchResult(event=event)
+                action = self._handle_left_pointer_click(event)
+                return PointerDispatchResult(event=event, action=action)
+            case PointerEventKind.DRAG_START | PointerEventKind.DRAG_MOVE | PointerEventKind.DRAG_END:
+                return PointerDispatchResult(
+                    event=event,
+                    hovered_region_id=self._pointer_region_id_at(event.position.tile),
+                )
+            case unreachable:
+                raise AssertionError(f"unreachable pointer event kind: {unreachable!r}")
+
+    def _handle_left_pointer_click(self, event: PointerEvent) -> Optional[GameAction]:
+        menu = self._active_pointer_menu()
+        if menu is not None:
+            hover_event = PointerEventKind.HOVER.at(tile=event.position.tile, pixel=event.position.pixel)
+            menu.handle_pointer_event(hover_event)
+            self.handle_input(GameAction.CONFIRM)
+            return GameAction.CONFIRM
+
+        target_index = self._target_index_at(event.position.tile)
+        if target_index is None:
+            return None
+        self.target_cursor = target_index
+        self._handle_target_select(GameAction.CONFIRM)
+        return GameAction.CONFIRM
+
+    def _active_pointer_menu(self) -> Optional[CursorMenu]:
+        if self.state == CombatUIState.ACTION_MENU:
+            return self.action_menu
+        if self.state == CombatUIState.SKILL_MENU:
+            return self.skill_menu
+        if self.state == CombatUIState.ITEM_MENU:
+            return self.item_menu
+        if self.state == CombatUIState.CHOICE_SELECT:
+            return self.choice_menu
+        if self.state == CombatUIState.CHAIN_ABILITY_SELECT:
+            return self.chain_ability_menu
+        return None
+
+    def _target_index_at(self, tile: Tuple[int, int]) -> Optional[int]:
+        cell_x, cell_y = tile
+        for index, rect in self._enemy_rects.items():
+            rect_x, rect_y, rect_w, rect_h = rect
+            if rect_x <= cell_x < rect_x + rect_w and rect_y <= cell_y < rect_y + rect_h:
+                if index < len(self.combat_manager.enemies):
+                    target = self.combat_manager.enemies[index]
+                    if target in self.current_target_list:
+                        return self.current_target_list.index(target)
+        for index, rect in self._ally_rects.items():
+            rect_x, rect_y, rect_w, rect_h = rect
+            if rect_x <= cell_x < rect_x + rect_w and rect_y <= cell_y < rect_y + rect_h:
+                if index < len(self.combat_manager.allies):
+                    target = self.combat_manager.allies[index]
+                    if target in self.current_target_list:
+                        return self.current_target_list.index(target)
+        return None
+
+    def _pointer_region_id_at(self, tile: Tuple[int, int]) -> Optional[str]:
+        target_index = self._target_index_at(tile)
+        if target_index is not None:
+            return f"target:{target_index}"
+        if self._hover_character is not None:
+            return getattr(self._hover_character, "name", None)
+        return None
+
+    def _pointer_hover_text(self) -> Optional[str]:
+        if self._hover_character is not None:
+            name = getattr(self._hover_character, "name", "???")
+            hp = getattr(self._hover_character, "current_hp", getattr(self._hover_character, "hp", "?"))
+            max_hp = getattr(self._hover_character, "max_hp", "?")
+            mp = getattr(self._hover_character, "current_mp", getattr(self._hover_character, "mp", "?"))
+            max_mp = getattr(self._hover_character, "max_mp", "?")
+            return f"{name} HP {hp}/{max_hp} MP {mp}/{max_mp}"
+
+        cell_x, cell_y = self._mouse_cell or (-1, -1)
+        msg_x = 40
+        msg_y = 30
+        msg_width = self.screen_width - msg_x - 2
+        if msg_x <= cell_x <= msg_x + msg_width and msg_y <= cell_y < msg_y + self.log_visible_lines:
+            line_index = cell_y - msg_y
+            total_messages = len(self.messages)
+            start_idx = max(0, total_messages - self.log_visible_lines - self.log_scroll_offset)
+            message_index = start_idx + line_index
+            if 0 <= message_index < total_messages:
+                return getattr(self.messages[message_index], "text", None)
+        return None
+
     def _update_hover_character(self) -> None:
         """마우스 위치에 따라 호버 캐릭터 갱신"""
         if self._mouse_cell is None:
@@ -4290,7 +4520,7 @@ class CombatUI:
             self._ally_rects[i] = (3, y, 46, 5)
 
             # 이름 + 상태
-            name_color = (255, 255, 255) if ally.is_alive else (100, 100, 100)
+            name_color = token_color("text.primary").rgb if ally.is_alive else token_color("state.disabled").rgb
 
             # 현재 행동 중인 캐릭터 표시 또는 타겟 선택 화살표
             if ally == self.current_actor:
@@ -4507,11 +4737,11 @@ class CombatUI:
             is_boss = hasattr(enemy, 'enemy_id') and enemy.enemy_id.startswith("boss_") if hasattr(enemy, 'enemy_id') else False
             is_floor_boss = hasattr(enemy, 'is_floor_boss') and enemy.is_floor_boss
             if not enemy.is_alive:
-                name_color = (100, 100, 100)
+                name_color = token_color("state.disabled").rgb
             elif is_boss or is_floor_boss:
-                name_color = (255, 0, 0)  # 보스 또는 5층 층 보스: 선명한 빨간색
+                name_color = token_color("threat.critical").rgb  # 보스: 치명 위협 토큰
             else:
-                name_color = (255, 255, 255)  # 일반 적: 흰색
+                name_color = token_color("text.primary").rgb  # 일반 적
 
             # 대상 선택 커서 또는 턴 표시
             if enemy == self.current_actor:
@@ -4984,51 +5214,56 @@ class CombatUI:
 
         ratio = max(0.0, min(1.0, ratio))
 
-        # ── 색상 결정 ──
+        # ── 색상 결정 ── (semantic 토큰 단일 진실공급원: visual_hud)
+        from src.ui.visual_hud import gauge_colors as _vh_gauge_colors
+        from src.ui.visual_tokens import get_color as _vh_color
         if custom_color:
             fg = custom_color
             bg = (max(0, fg[0] // 3), max(0, fg[1] // 3), max(0, fg[2] // 3))
         elif kind == "hp":
-            if ratio > 0.6:
-                fg, bg = (50, 220, 50), (15, 55, 15)
-            elif ratio > 0.3:
-                fg, bg = (220, 220, 50), (55, 55, 15)
-            else:
-                fg, bg = (220, 50, 50), (55, 15, 15)
+            _fg_v, _bg_v = _vh_gauge_colors("hp", ratio)
+            fg, bg = tuple(_fg_v.rgb), tuple(_bg_v.rgb)
         elif kind == "brv":
             if is_broken:
-                fg, bg = (180, 50, 50), (50, 15, 15)
+                fg, bg = _vh_color("threat.high").rgb, _vh_color("surface.sunken").rgb
             elif ratio >= 0.95:
-                # BRV 최대치 — 다홍색 불타는 효과
+                # BRV 최대치 — accent.violet 기반 맥동 강조
                 pulse = 0.5 + 0.5 * math.sin(_time.time() * 4 * math.pi)
-                fg = (int(220 + 35 * pulse), int(80 + 40 * pulse), int(30 + 30 * pulse))
-                bg = (70, 25, 10)
+                _base = _vh_color("accent.violet").rgb
+                fg = (int(_base[0] * (0.85 + pulse * 0.15)),
+                      int(_base[1] * (0.85 + pulse * 0.15)),
+                      int(_base[2] * (0.85 + pulse * 0.15)))
+                bg = _vh_color("surface.sunken").rgb
             else:
-                fg, bg = (230, 200, 50), (60, 50, 15)
+                _fg_v, _bg_v = _vh_gauge_colors("brv")
+                fg, bg = tuple(_fg_v.rgb), tuple(_bg_v.rgb)
         elif kind == "mp":
-            fg, bg = (100, 150, 255), (25, 38, 65)
+            _fg_v, _bg_v = _vh_gauge_colors("mp")
+            fg, bg = tuple(_fg_v.rgb), tuple(_bg_v.rgb)
         elif kind == "tw":
+            # 팀워크 게이지 — accent.cyan 토큰 기반 4단계 휘도
             if ratio >= 0.8:
-                fg, bg = (100, 255, 220), (30, 100, 80)
+                fg, bg = _vh_color("accent.cyan").rgb, _vh_color("surface.sunken").rgb
             elif ratio >= 0.5:
-                fg, bg = (80, 220, 200), (25, 80, 70)
+                fg, bg = _vh_color("line.strong").rgb, _vh_color("surface.sunken").rgb
             elif ratio >= 0.25:
-                fg, bg = (60, 180, 160), (20, 60, 55)
+                fg, bg = _vh_color("line.default").rgb, _vh_color("surface.sunken").rgb
             else:
-                fg, bg = (40, 140, 120), (15, 45, 40)
+                fg, bg = _vh_color("text.secondary").rgb, _vh_color("surface.sunken").rgb
         elif kind == "atb":
             if is_current_actor:
                 pulse = 0.35 + 0.35 * math.sin(_time.time() * 6 * math.pi)
-                fg = (int(255 * (0.7 + pulse * 0.3)),
-                      int(215 * (0.7 + pulse * 0.3)),
-                      int(min(255, 100 * (0.5 + pulse * 0.5))))
-                bg = (70, 60, 25)
+                _base = _vh_color("accent.amber").rgb
+                fg = (int(_base[0] * (0.7 + pulse * 0.3)),
+                      int(_base[1] * (0.7 + pulse * 0.3)),
+                      int(_base[2] * (0.7 + pulse * 0.3)))
+                bg = _vh_color("surface.sunken").rgb
             elif is_casting:
-                fg, bg = (200, 100, 255), (55, 28, 70)
+                fg, bg = _vh_color("accent.violet").rgb, _vh_color("surface.sunken").rgb
             else:
-                fg, bg = (135, 206, 235), (35, 55, 65)
+                fg, bg = _vh_color("accent.cyan").rgb, _vh_color("surface.sunken").rgb
         else:
-            fg, bg = (200, 200, 200), (50, 50, 50)
+            fg, bg = _vh_color("text.secondary").rgb, _vh_color("surface.sunken").rgb
 
         # 1) 배경
         rl.draw_rectangle(px, py, pw, ph, rl.Color(bg[0], bg[1], bg[2], 255))
@@ -5308,7 +5543,7 @@ class CombatUI:
         
         # 구분선과 로그 제목
         separator = "─" * (msg_width - 12)  # "[전투 로그]" 공간 확보
-        console.print(msg_x, msg_y - 1, "[전투 로그]" + separator, fg=(150, 150, 150))
+        console.print(msg_x, msg_y - 1, "[전투 로그]" + separator, fg=rgb("line.default"))
         
         # 메시지 목록 (오래된 것부터 정렬)
         total_messages = len(self.messages)
@@ -5341,10 +5576,10 @@ class CombatUI:
         if total_messages > self.log_visible_lines:
             # 아래로 스크롤 가능 (오래된 메시지 더 보기)
             if self.log_scroll_offset < max_scroll:
-                console.print(msg_x + msg_width, msg_y + self.log_visible_lines - 1, "▼", fg=(150, 150, 150))
+                console.print(msg_x + msg_width, msg_y + self.log_visible_lines - 1, "▼", fg=rgb("accent.cyan"))
             # 위로 스크롤 가능 (최신 메시지 보기)
             if self.log_scroll_offset > 0:
-                console.print(msg_x + msg_width, msg_y, "▲", fg=(150, 150, 150))
+                console.print(msg_x + msg_width, msg_y, "▲", fg=rgb("accent.cyan"))
 
     def _render_floating_dialogues(self, console: tcod.console.Console):
         """떠다니는 대사 렌더링 (림버스 컴퍼니 스타일 - 글리치/공포 효과)"""
@@ -6274,11 +6509,11 @@ class CombatUI:
             line += 1
 
             if thirst >= 96:
-                console.print(content_x, content_y + line, "💧 상태: 혈액 광란 (극위험!)", fg=(255, 0, 0))
+                console.print(content_x, content_y + line, "💧 상태: 혈액 광란 (극위험!)", fg=token_color("threat.critical").rgb)
                 line += 1
-                console.print(content_x, content_y + line, " 공격력 +150%, 흡혈 5배, 속도 +100%", fg=(255, 200, 0))
+                console.print(content_x, content_y + line, " 공격력 +150%, 흡혈 5배, 속도 +100%", fg=token_color("status.warning").rgb)
                 line += 1
-                console.print(content_x, content_y + line, "  매 턴 HP 10% 감소, 받는 데미지 +50%", fg=(255, 50, 50))
+                console.print(content_x, content_y + line, "  매 턴 HP 10% 감소, 받는 데미지 +50%", fg=token_color("threat.high").rgb)
             elif thirst >= 91:
                 console.print(content_x, content_y + line, "💧 상태: 통제된 광란 (위험!)", fg=(255, 100, 50))
                 line += 1
@@ -9038,6 +9273,10 @@ def run_combat(
             # tcod 이벤트는 non-blocking으로 변경
             events = tcod.event.get()  # wait 대신 get 사용
             for event in events:
+                pointer_event = unified_input_handler.process_pointer_event(event)
+                if pointer_event is not None:
+                    ui.handle_pointer_event(pointer_event)
+                    continue
                 action = unified_input_handler.process_tcod_event(event)
                 if action:
                     break

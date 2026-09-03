@@ -13,6 +13,9 @@ import tcod.console
 from tcod import libtcodpy
 import time
 from src.core.logger import get_logger
+from src.ui.visual_hud import gauge_colors as _token_gauge_colors
+from src.ui.visual_hud import hp_status_token as _hp_status_token
+from src.ui.visual_tokens import get_color as _get_color
 
 logger = get_logger("gauge")
 
@@ -328,15 +331,9 @@ class GaugeRenderer:
             fg_color = custom_color
             bg_color = tuple(c // 2 for c in custom_color)
         elif color_gradient:
-            if ratio > 0.6:
-                fg_color = (0, 200, 0)  # 초록
-                bg_color = (0, 100, 0)
-            elif ratio > 0.3:
-                fg_color = (200, 200, 0)  # 노랑
-                bg_color = (100, 100, 0)
-            else:
-                fg_color = (200, 0, 0)  # 빨강
-                bg_color = (100, 0, 0)
+            fg_visual, bg_visual = _token_gauge_colors("hp", ratio)
+            fg_color: Tuple[int, int, int] = tuple(fg_visual.rgb)
+            bg_color: Tuple[int, int, int] = tuple(bg_visual.rgb)
         else:
             fg_color = (150, 150, 150)
             bg_color = (50, 50, 50)
@@ -546,19 +543,12 @@ class GaugeRenderer:
             display_ratio = min(1.0, display_hp / max_hp)
             wound_ratio = wound_damage / max_hp
         
-        # 색상 계산 (HP 비율 기준)
-        if ratio > 0.6:
-            fg_color = (50, 220, 50)
-            bg_color = (20, 80, 20)
-            color_name = 'hp_high'
-        elif ratio > 0.3:
-            fg_color = (220, 220, 50)
-            bg_color = (80, 80, 20)
-            color_name = 'hp_mid'
-        else:
-            fg_color = (220, 50, 50)
-            bg_color = (80, 20, 20)
-            color_name = 'hp_low'
+        # 색상 계산 (HP 비율 기준) — semantic 토큰 단일 진실공급원
+        _hp_token = _hp_status_token(ratio)
+        fg_visual, bg_visual = _token_gauge_colors("hp", ratio)
+        fg_color: Tuple[int, int, int] = tuple(fg_visual.rgb)
+        bg_color: Tuple[int, int, int] = tuple(bg_visual.rgb)
+        color_name = str(_hp_token).split(".", 1)[1]  # 'hp_high' / 'hp_mid' / 'hp_low'
         
         # === 레이어 방식 렌더링 ===
         # 레이어 순서: 1.배경 → 2.HP바 → 3.상처(HP 위에 덮어씌움)
@@ -898,9 +888,13 @@ class GaugeRenderer:
             ratio = min(1.0, current_mp / usable_max_mp)
             display_ratio = min(1.0, display_mp / usable_max_mp)
         
-        # MP 색상 (파란색 계열) - 채움/배경 고정 (혼합 최소화)
-        fg_color = (60, 140, 255) if ratio > 0.3 else (40, 110, 200)
-        bg_color = (25, 50, 90)
+        # MP 색상 — semantic 토큰(status.mp) 단일 진실공급원, 저량 시 휘도 낮춘 표현
+        _mp_visual, _mp_bg_visual = _token_gauge_colors("mp")
+        if ratio > 0.3:
+            fg_color = tuple(_mp_visual.rgb)
+        else:
+            fg_color = tuple(_get_color("line.default").rgb)  # status.mp의 저휘도 대체
+        bg_color = tuple(_mp_bg_visual.rgb)
         
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
@@ -1059,16 +1053,16 @@ class GaugeRenderer:
                 max(0, int(custom_color[2] * 0.4))
             )
         elif is_broken:
-            fg_color = (150, 50, 50)
-            bg_color = (60, 20, 20)
+            fg_color = tuple(_get_color("threat.high").rgb)
+            bg_color = tuple(_get_color("surface.sunken").rgb)
         elif ratio >= 1.0:
-            # 100%일 때 핑크색
-            fg_color = (255, 192, 203)  # 핑크색
-            bg_color = (120, 90, 95)
+            # 100%일 때 강조 (accent.violet = 만끽/풀게이지)
+            fg_color = tuple(_get_color("accent.violet").rgb)
+            bg_color = tuple(_get_color("surface.sunken").rgb)
         else:
-            # 그 외에는 노란 계열 통일
-            fg_color = (255, 220, 80)  # 노란색
-            bg_color = (100, 85, 30)
+            # 그 외에는 BRV 시안 통일
+            fg_color = tuple(_get_color("status.brv").rgb)
+            bg_color = tuple(_get_color("surface.sunken").rgb)
         
         # === 픽셀 단위 렌더링 (레이어 방식) ===
         total_pixels = width * divisions
@@ -1295,9 +1289,9 @@ class GaugeRenderer:
         
         ratio = min(1.0, max(0.0, progress))
 
-        # 캐스팅은 보라색
-        fg_color = (150, 100, 255)
-        bg_color = (75, 50, 125)
+        # 캐스팅은 보라 강조 (accent.violet 토큰)
+        fg_color = tuple(_get_color("accent.violet").rgb)
+        bg_color = tuple(_get_color("surface.sunken").rgb)
 
         # 스킬 이름 표시
         if skill_name:
@@ -1404,11 +1398,11 @@ class GaugeRenderer:
         # 행동 가능 여부에 따른 색상 변경
         is_ready = current >= threshold
         if is_ready:
-            fg_color = (150, 220, 255)  # 밝은 하늘색 (행동 가능)
-            bg_color = (60, 90, 140)
+            fg_color = tuple(_get_color("accent.cyan").rgb)  # 행동 가능 (accent.cyan)
+            bg_color = tuple(_get_color("surface.sunken").rgb)
         else:
-            fg_color = (100, 150, 255)  # 기본 파란색
-            bg_color = (50, 75, 125)
+            fg_color = tuple(_get_color("status.mp").rgb)  # 충전 중 (status.mp)
+            bg_color = tuple(_get_color("surface.sunken").rgb)
 
         # === 픽셀 단위 렌더링 (커스텀 타일 기반) ===
         total_pixels = width * divisions
