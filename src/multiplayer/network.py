@@ -102,17 +102,20 @@ class NetworkManager:
                 ready = message.data.get("ready", False)
                 ready_players = message.data.get("ready_players", [])
                 
-                # 세션의 준비 상태 업데이트
-                if ready:
-                    self.session.floor_ready_players.add(player_id)
-                else:
-                    self.session.floor_ready_players.discard(player_id)
-                
                 # 호스트인 경우: 업데이트된 상태를 모든 클라이언트에게 브로드캐스트
                 if self.is_host:
+                    # sender-bound 인가: WS 연결에서 파생된 sender_id가 진짜 원천.
+                    authorized_player_id = message.resolve_sender_player_id(sender_id)
+                    if not authorized_player_id:
+                        self.logger.warning(
+                            f"FLOOR_READY 스푸핑 의심 거부: sender={sender_id}, "
+                            f"payload player_id={message.player_id}"
+                        )
+                        return
+                    self.session.set_floor_ready(authorized_player_id, ready)
                     from src.multiplayer.protocol import MessageBuilder
                     updated_msg = MessageBuilder.floor_ready(
-                        player_id=player_id,
+                        player_id=authorized_player_id,
                         ready=ready,
                         ready_players=list(self.session.floor_ready_players),
                         total_players=len(self.session.players)
@@ -120,9 +123,7 @@ class NetworkManager:
                     await self.broadcast(updated_msg, exclude=sender_id)
                     self.logger.debug(f"층 이동 준비 상태 업데이트 브로드캐스트: {len(self.session.floor_ready_players)}/{len(self.session.players)}")
                 else:
-                    # 클라이언트: 받은 정보로 세션 동기화
-                    for pid in ready_players:
-                        self.session.floor_ready_players.add(pid)
+                    self.session.replace_floor_ready(ready_players)
                     self.logger.debug(f"층 이동 준비 상태 동기화: {len(self.session.floor_ready_players)}/{message.data.get('total_players', 0)}")
         
         # FLOOR_CHANGE 메시지 직접 처리 (클라이언트에서 층 변경 트리거)
@@ -542,6 +543,82 @@ class HostNetworkManager(NetworkManager):
         self.upnp_success: bool = False
         self.external_ip: Optional[str] = None
         self._upnp_mapped_port: Optional[int] = None
+
+        # 세대 토큰 (t_7846bbe3 §5.2): player_id별 현재 연결 세대. 재접속 시 증가.
+        self._client_generations: Dict[str, int] = {}
+
+    def _register_client_socket(self, client_id: str, websocket) -> int:
+        """클라이언트 소켓 등록 및 세대 토큰 발급. 현재 세대를 반환한다.
+
+        동일 player_id의 기존 소켓이 있으면 즉시 닫는다(superseded, t_7846bbe3 §5.2).
+        닫힌 구 handle_client는 세대 불일치로 finally 정리를 건너뛴다.
+        """
+        existing_ws = self.clients.get(client_id)
+        if existing_ws is not None and existing_ws is not websocket:
+            self._close_superseded(existing_ws)
+            self.logger.info(f"동일 player_id 재접속: 구 연결 대체 (player={client_id})")
+        self.clients[client_id] = websocket
+        generation = self._client_generations.get(client_id, 0) + 1
+        self._client_generations[client_id] = generation
+        return generation
+
+    def _close_superseded(self, websocket) -> None:
+        """대체된 구 소켓을 닫는다 (동기 컨텍스트에서 fire-and-forget)."""
+        try:
+            asyncio.get_running_loop()
+            asyncio.create_task(websocket.close(code=4000, reason="superseded"))
+        except RuntimeError:
+            try:
+                asyncio.run(websocket.close(code=4000, reason="superseded"))
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    async def _cleanup_client(self, client_id: str, generation: Optional[int] = None) -> bool:
+        """클라이언트 연결 정리. 세대 토큰이 현재와 일치할 때만 실제 정리를 수행한다.
+
+        HOST_MIGRATED는 발송하지 않는다 (P2P 토폴로지에서 진짜 migration 불가,
+        t_7846bbe3 §5.1 정책). 호스트 상실 시 클라이언트는 SESSION_ENDED/소켓 종료로
+        세션 종료를 인지한다.
+
+        Returns:
+            실제 정리가 수행되었으면 True, 세대 불일치로 건너뛰었으면 False
+        """
+        # 세대 검증: 구 세대의 finally는 정리를 건너뛴다 (유령 PLAYER_LEFT 방지)
+        current_generation = self._client_generations.get(client_id)
+        if generation is not None and current_generation is not None and generation != current_generation:
+            self.logger.debug(f"정리 건너뜀 (세대 불일치: {generation} != {current_generation}): {client_id}")
+            return False
+
+        # 먼저 세션에서 플레이어 제거
+        player_was_in_session = False
+        if self.session and client_id in self.session.players:
+            _, _new_host_id = self.session.remove_player(client_id)
+            player_was_in_session = True
+            self.logger.info(f"세션에서 플레이어 제거: {client_id}")
+            # 참고: host migration은 비활성화 정책이므로 new_host_id는 무시한다
+
+        # 클라이언트를 딕셔너리에서 제거
+        was_in_clients = client_id in self.clients
+        if was_in_clients:
+            del self.clients[client_id]
+        if client_id in self.ping_history:
+            del self.ping_history[client_id]
+
+        # 연결 종료 메시지 브로드캐스트 (PLAYER_LEFT만 — migration 없음)
+        if player_was_in_session and self.clients:
+            try:
+                disconnect_msg = NetworkMessage(
+                    type=MessageType.PLAYER_LEFT,
+                    player_id=client_id
+                )
+                await self.broadcast(disconnect_msg)
+            except Exception as e:
+                self.logger.debug(f"연결 종료 메시지 브로드캐스트 실패 (무시 가능): {e}")
+
+        self.logger.info(f"클라이언트 연결 종료: {client_id}")
+        return True
     
     @staticmethod
     def find_available_port(start_port: int = 5000, max_attempts: int = 100) -> int:
@@ -627,7 +704,34 @@ class HostNetworkManager(NetworkManager):
                     # CONNECT 메시지 처리
                     client_id = message.player_id
                     client_name = message.data.get("player_name", "플레이어")
-                    self.clients[client_id] = websocket
+
+                    # 프로토콜 버전 검증 (t_7846bbe3 §4.3): 미지원 버전은 거부
+                    client_protocol_version = message.data.get("protocol_version")
+                    if client_protocol_version is not None and client_protocol_version != MultiplayerConfig.protocol_version:
+                        self.logger.warning(
+                            f"프로토콜 버전 불일치 거부: client={client_protocol_version}, "
+                            f"server={MultiplayerConfig.protocol_version}"
+                        )
+                        reject_msg = MessageBuilder.connection_rejected(client_id or "unknown", "version_mismatch")
+                        await self._send_raw(reject_msg.to_json().encode('utf-8'), websocket)
+                        await websocket.close(code=4001, reason="version_mismatch")
+                        return
+
+                    # 세션 epoch 검증 (t_7846bbe3 §4.1/§5.2): 구 세대 재접속은 거부
+                    server_epoch = self.session.epoch if self.session else 0
+                    client_epoch = message.data.get("epoch", message.epoch)
+                    if client_epoch and server_epoch and client_epoch != server_epoch:
+                        self.logger.warning(
+                            f"세션 epoch 불일치 거부: client={client_epoch}, server={server_epoch}"
+                        )
+                        stale_msg = MessageBuilder.session_stale(server_epoch, client_epoch)
+                        await self._send_raw(stale_msg.to_json().encode('utf-8'), websocket)
+                        await websocket.close(code=4002, reason="session_stale")
+                        return
+
+                    # 동일 player_id 재접속: 구 소켓 대체 + 세대 토큰 발급
+                    # (_register_client_socket이 supersede close를 수행, t_7846bbe3 §5.2)
+                    generation = self._register_client_socket(client_id, websocket)
                     self.ping_history[client_id] = []
                     
                     self.logger.info(f"클라이언트 연결 승인: {client_id} ({client_name})")
@@ -737,13 +841,13 @@ class HostNetworkManager(NetworkManager):
                     if self.session:
                         player_joined_msg = MessageBuilder.player_list([
                             {
-                                "player_id": local_player.player_id,
-                                "player_name": local_player.player_name,
-                                "x": local_player.x,
-                                "y": local_player.y,
-                                "is_host": local_player.is_host,
-                                "party_count": len(local_player.party) if local_player.party else 0
-                            } for local_player in self.session.players.values()
+                                "player_id": session_player.player_id,
+                                "player_name": session_player.player_name,
+                                "x": session_player.x,
+                                "y": session_player.y,
+                                "is_host": session_player.is_host,
+                                "party_count": len(session_player.party) if session_player.party else 0
+                            } for session_player in self.session.players.values()
                         ])
                         await self.broadcast(player_joined_msg)
                         self.logger.info(f"플레이어 목록 브로드캐스트: {len(self.session.players)}명")
@@ -788,45 +892,15 @@ class HostNetworkManager(NetworkManager):
             except Exception as e:
                 self.logger.error(f"클라이언트 처리 오류: {e}", exc_info=True)
             finally:
-                # 클라이언트 제거
+                # 세대 토큰 기반 정리 (t_7846bbe3 §5.2):
+                # 재접속으로 자신의 소켓이 대체된 구 handle_client는 정리를 건너뛴다.
                 if client_id:
-                    # 먼저 세션에서 플레이어 제거
-                    player_was_in_session = False
-                    new_host_id = None
-                    if self.session and client_id in self.session.players:
-                        _, new_host_id = self.session.remove_player(client_id)
-                        player_was_in_session = True
-                        self.logger.info(f"세션에서 플레이어 제거: {client_id}")
-                    
-                    # 클라이언트를 딕셔너리에서 제거
-                    was_in_clients = client_id in self.clients
-                    if was_in_clients:
-                        del self.clients[client_id]
-                    if client_id in self.ping_history:
-                        del self.ping_history[client_id]
-                    
-                    # 연결 종료 메시지 브로드캐스트 (다른 클라이언트들에게만, 연결이 끊어진 클라이언트 제외)
-                    # 플레이어가 세션에 있었고 다른 클라이언트가 남아있는 경우에만 브로드캐스트
-                    if player_was_in_session and self.clients:
-                        try:
-                            # 1. PLAYER_LEFT 메시지 전송
-                            disconnect_msg = NetworkMessage(
-                                type=MessageType.PLAYER_LEFT,
-                                player_id=client_id
-                            )
-                            await self.broadcast(disconnect_msg)
-                            
-                            # 2. 호스트가 변경되었다면 HOST_MIGRATED 메시지 전송
-                            if new_host_id:
-                                host_migrated_msg = MessageBuilder.host_migrated(new_host_id)
-                                await self.broadcast(host_migrated_msg)
-                                self.logger.info(f"호스트 마이그레이션 알림 전송: 새로운 호스트 {new_host_id}")
-                                
-                        except Exception as e:
-                            # 연결 종료 중일 때는 메시지 전송 실패가 흔할 수 있으므로 경고만 출력
-                            self.logger.debug(f"연결 종료 메시지 브로드캐스트 실패 (무시 가능): {e}")
-                    
-                    self.logger.info(f"클라이언트 연결 종료: {client_id}")
+                    my_generation = self._client_generations.get(client_id, -1) if client_id not in self.clients else None
+                    # clients[client_id]가 내 소켓이 아니면 나는 이미 대체된 구 세대다
+                    if client_id in self.clients and self.clients[client_id] is not websocket:
+                        self.logger.debug(f"정리 건너뜀 (대체된 구 세대): {client_id}")
+                        return
+                    await self._cleanup_client(client_id, generation=my_generation)
         
         # 서버 시작 (포트 바인딩 실패 시 재시도)
         max_retries = 5
@@ -918,8 +992,17 @@ class HostNetworkManager(NetworkManager):
         return self._local_ip
     
     async def stop_server(self):
-        """서버 중지"""
+        """서버 중지 (SESSION_ENDED 통보 후 종료, t_7846bbe3 §5.1)"""
         self.logger.info("호스트 서버 중지 중...")
+
+        # SESSION_ENDED 통보 (정상 종료 — 클라이언트가 재연결 루프 없이 로비 복귀하도록)
+        if self.clients:
+            try:
+                ended_msg = MessageBuilder.session_ended(reason="host_stopped")
+                await self.broadcast(ended_msg)
+                await asyncio.sleep(0.05)  # 전송 플러시 대기
+            except Exception as e:
+                self.logger.debug(f"SESSION_ENDED 브로드캐스트 실패 (무시 가능): {e}")
 
         # UPnP 포트 매핑 제거
         if self._upnp_mapped_port is not None:
@@ -952,7 +1035,13 @@ class HostNetworkManager(NetworkManager):
 
 class ClientNetworkManager(NetworkManager):
     """클라이언트 네트워크 관리자"""
-    
+
+    # host transport 표식: 클라이언트는 서버(호스트)와의 단일 WebSocket에서
+    # 모든 메시지를 받는다. sender_id로 사용할 수 있는 실제 발신 플레이어 ID는
+    # 페이로드에만 있으므로, "이 메시지는 신뢰된 host transport 경유"라는 사실을
+    # payload actor(player_id)와 구분된 상수로 표현한다.
+    HOST_TRANSPORT_SENDER = "__host_transport__"
+
     def __init__(self, host_address: str, port: int = 5000):
         """
         클라이언트 네트워크 관리자 초기화
@@ -973,6 +1062,11 @@ class ClientNetworkManager(NetworkManager):
         self._reconnect_delay = 2.0  # 초기 대기 시간 (초)
         self._reconnect_max_delay = 30.0  # 최대 대기 시간 (초)
         self._auto_reconnect = True  # 자동 재연결 활성화
+        # 호스트 세션 epoch (t_7846bbe3 §4.1): CONNECTION_ACCEPTED에서 학습
+        self.session_epoch: int = 0
+        # 세션 종료/만료 플래그 (main.py UI에서 확인)
+        self.session_ended: bool = False
+        self.session_stale: bool = False
     
     async def connect(self, player_id: str, player_name: str):
         """
@@ -1018,13 +1112,15 @@ class ClientNetworkManager(NetworkManager):
                     self.logger.info(f"세션 ID: {session_id}")
                     await self._handle_message(message)
                     self.connection_state = ConnectionState.CONNECTED
+                    # 호스트 세션 epoch 저장 (재접속 시 CONNECT에 태그)
+                    self.session_epoch = message.epoch or getattr(self, 'session_epoch', 0)
                     
                     # 세션 시드 메시지도 바로 수신 (호스트가 바로 보냄)
                     try:
                         seed_data = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
                         seed_message = await self._receive_message(seed_data)
                         if seed_message:
-                            await self._handle_message(seed_message, "host")
+                            await self._handle_message(seed_message, self.HOST_TRANSPORT_SENDER)
                             self.logger.info(f"세션 시드 메시지 처리 완료: {seed_message.type}")
                     except asyncio.TimeoutError:
                         self.logger.warning("세션 시드 메시지 타임아웃 (백그라운드 루프에서 수신 예정)")
@@ -1075,7 +1171,15 @@ class ClientNetworkManager(NetworkManager):
                     data = await self.websocket.recv()
                     message = await self._receive_message(data)
                     if message:
-                        await self._handle_message(message, "host")
+                        # 세션 종료 통보: 재연결 시도 없이 세션 종료 상태로 전환 (t_7846bbe3 §5.1)
+                        if message.type == MessageType.SESSION_ENDED:
+                            self.logger.warning(f"세션 종료 통보 수신: {message.data.get('reason', 'unknown')}")
+                            self.session_ended = True
+                            self._auto_reconnect = False
+                            self.connection_state = ConnectionState.DISCONNECTED
+                            await self._handle_message(message, self.HOST_TRANSPORT_SENDER)
+                            break
+                        await self._handle_message(message, self.HOST_TRANSPORT_SENDER)
             except websockets.exceptions.ConnectionClosed:
                 self.logger.warning("호스트 연결 종료")
                 self.connection_state = ConnectionState.DISCONNECTED
@@ -1122,13 +1226,39 @@ class ClientNetworkManager(NetworkManager):
                 )
                 self.logger.info("WebSocket 재연결 성공")
                 
-                # 연결 메시지 전송
-                connect_msg = MessageBuilder.connect(self.player_id, self._player_name)
+                # 연결 메시지 전송 (학습한 epoch 태그, t_7846bbe3 §5.2)
+                connect_msg = MessageBuilder.connect(self.player_id, self._player_name, epoch=self.session_epoch)
                 await self._send_raw(connect_msg.to_json().encode('utf-8'), self.websocket)
-                
+
                 # 연결 승인 대기
                 data = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
                 message = await self._receive_message(data)
+
+                # 세션 만료/종료 거부: 재연결 루프를 즉시 포기한다 (t_7846bbe3 §4.3)
+                if message and message.type == MessageType.SESSION_STALE:
+                    self.logger.warning(
+                        f"재접속 거부 (세션 epoch 불일치): server={message.data.get('server_epoch')}, "
+                        f"client={message.data.get('client_epoch')}"
+                    )
+                    self.session_stale = True
+                    self._auto_reconnect = False
+                    self.connection_state = ConnectionState.DISCONNECTED
+                    try:
+                        await self.websocket.close()
+                    except Exception:
+                        pass
+                    self.websocket = None
+                    return
+                if message and message.type == MessageType.CONNECTION_REJECTED:
+                    self.logger.warning(f"재접속 거부: {message.data.get('reason', 'unknown')}")
+                    self._auto_reconnect = False
+                    self.connection_state = ConnectionState.DISCONNECTED
+                    try:
+                        await self.websocket.close()
+                    except Exception:
+                        pass
+                    self.websocket = None
+                    return
                 
                 if message and message.type == MessageType.CONNECTION_ACCEPTED:
                     self.logger.info("재연결 성공!")
@@ -1140,7 +1270,7 @@ class ClientNetworkManager(NetworkManager):
                         seed_data = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
                         seed_message = await self._receive_message(seed_data)
                         if seed_message:
-                            await self._handle_message(seed_message, "host")
+                            await self._handle_message(seed_message, self.HOST_TRANSPORT_SENDER)
                     except asyncio.TimeoutError:
                         pass
                     
@@ -1159,11 +1289,11 @@ class ClientNetworkManager(NetworkManager):
                             sync_data = await asyncio.wait_for(self.websocket.recv(), timeout=3.0)
                             sync_message = await self._receive_message(sync_data)
                             if sync_message and sync_message.type == MessageType.FULL_STATE_SYNC:
-                                await self._handle_message(sync_message, "host")
+                                await self._handle_message(sync_message, self.HOST_TRANSPORT_SENDER)
                                 self.logger.info("전투 상태 동기화 완료")
                             elif sync_message:
                                 # 전투 중이 아니라 다른 메시지가 온 경우 정상 처리
-                                await self._handle_message(sync_message, "host")
+                                await self._handle_message(sync_message, self.HOST_TRANSPORT_SENDER)
                         except asyncio.TimeoutError:
                             self.logger.debug("전투 상태 동기화 응답 없음 (전투 중이 아닐 수 있음)")
                     except Exception as e:

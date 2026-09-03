@@ -212,47 +212,16 @@ class CombatSyncManager:
             self.logger.error(f"네트워크 핸들러 등록 실패: {e}", exc_info=True)
 
     async def _handle_host_migrated(self, message: NetworkMessage, sender_id: Optional[str] = None):
-        """
-        호스트 마이그레이션 처리
+        """호스트 마이그레이션 처리 (정책상 비활성화, t_7846bbe3 §5.1)
 
-        새로운 호스트 ID가 로컬 플레이어와 일치하면 호스트 역할로 전환합니다.
+        P2P 토폴로지에서 진짜 host migration은 불가능하므로(설계 §1), 수신 시
+        no-op으로 강등한다. 로컬 플래그 전환은 수행하지 않는다.
         """
         new_host_id = message.data.get("new_host_id")
-        if not new_host_id:
-            return
-
-        from src.multiplayer.game_mode import get_game_mode_manager
-        game_mode_manager = get_game_mode_manager()
-        local_player_id = getattr(game_mode_manager, 'local_player_id', None)
-
-        if new_host_id == local_player_id:
-            self.logger.info("호스트 마이그레이션: 이 노드가 새로운 호스트로 전환됩니다")
-            self.is_host = True
-
-            # ATB 시스템 호스트 모드 전환
-            if self.combat_manager and hasattr(self.combat_manager, 'atb'):
-                atb = self.combat_manager.atb
-                if hasattr(atb, 'set_host_mode'):
-                    atb.set_host_mode(True)
-
-            # 전투 상태 업데이트 핸들러 해제 (호스트는 수신 불필요)
-            if self.network_manager:
-                self.network_manager.unregister_handler(
-                    MessageType.STATE_UPDATE,
-                    self._handle_combat_state_update
-                )
-
-            # 이벤트 버스로 마이그레이션 전파 (EnemySyncManager 등 다른 시스템에 알림)
-            from src.core.event_bus import event_bus
-            event_bus.publish("multiplayer.host_migrated", {
-                "new_host_id": new_host_id,
-                "is_new_host": True
-            })
-
-            # 즉시 전체 상태 브로드캐스트 (새 호스트로서)
-            await self.send_heartbeat()
-        else:
-            self.logger.info(f"호스트 마이그레이션: 새 호스트 = {new_host_id}")
+        self.logger.warning(
+            f"HOST_MIGRATED 수신 (비활성화 정책 — 무시): new_host_id={new_host_id}. "
+            "P2P 토폴로지에서는 host migration이 지원되지 않습니다."
+        )
 
     async def _handle_request_state_sync(self, message: NetworkMessage, sender_id: Optional[str] = None):
         """
@@ -431,9 +400,14 @@ class CombatSyncManager:
                 self.logger.warning("전투 관리자가 없어 액션을 처리할 수 없습니다")
                 return
             
-            player_id = message.player_id or sender_id
+            # sender-bound 인가: WS 연결에서 파생된 sender_id가 진짜 원천.
+            # payload player_id가 sender와 불일치하면 스푸핑 시도이므로 거부.
+            player_id = message.resolve_sender_player_id(sender_id)
             if not player_id:
-                self.logger.warning("액션 메시지에 플레이어 ID가 없습니다")
+                self.logger.warning(
+                    f"COMBAT_ACTION 스푸핑 의심 거부: sender={sender_id}, "
+                    f"payload player_id={message.player_id}"
+                )
                 return
             
             # 액션 데이터 추출
@@ -495,9 +469,12 @@ class CombatSyncManager:
             sender_id: 발신자 ID
         """
         try:
-            left_player_id = message.player_id or sender_id
+            left_player_id = message.resolve_sender_player_id(sender_id)
             if not left_player_id:
-                self.logger.warning("PLAYER_LEFT 메시지에 플레이어 ID가 없습니다")
+                self.logger.warning(
+                    f"PLAYER_LEFT 스푸핑 의심 거부: sender={sender_id}, "
+                    f"payload player_id={message.player_id}"
+                )
                 return
 
             self.logger.info(f"전투 중 플레이어 연결 끊김: {left_player_id}")
@@ -629,7 +606,7 @@ class CombatSyncManager:
         try:
             if not self.combat_manager:
                 return False
-            
+
             # 액션 실행
             result = self.combat_manager.execute_action(
                 actor=actor,
@@ -1154,7 +1131,7 @@ class CombatSyncManager:
             target_id = action_data.get("target_id")
             if target_id:
                 target = self._find_character_by_id(target_id)
-            
+
             # 스킬 찾기
             skill = None
             skill_id = action_data.get("skill_id")

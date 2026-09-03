@@ -10,6 +10,10 @@ from typing import Optional
 COMBAT_JOIN_ATB_INITIAL = 0  # 0부터 시작
 COMBAT_JOIN_TIME_LIMIT: Optional[float] = None  # 제한 없음
 COMBAT_JOIN_ENEMY_REACTION = "recalculate_threat"  # 위협 재계산
+COMBAT_JOIN_GRACE_WINDOW = 10.0  # 전투 시작 후 늦은 합류 허용 시간 (초, t_7846bbe3 §5.4)
+
+# 프로토콜 버전 (t_7846bbe3 §4.3)
+PROTOCOL_VERSION = 2  # epoch/revision/seq + snapshot 지원
 
 # 플레이어 수별 밸런스
 ENEMY_COUNT_MULTIPLIER = 1.0  # 싱글과 동일
@@ -68,6 +72,10 @@ class MultiplayerConfig:
     combat_join_atb_initial = COMBAT_JOIN_ATB_INITIAL
     combat_join_time_limit = COMBAT_JOIN_TIME_LIMIT
     combat_join_enemy_reaction = COMBAT_JOIN_ENEMY_REACTION
+    combat_join_grace_window = COMBAT_JOIN_GRACE_WINDOW
+
+    # 프로토콜 버전
+    protocol_version = PROTOCOL_VERSION
     
     # 플레이어 수별 밸런스
     enemy_count_multiplier = ENEMY_COUNT_MULTIPLIER

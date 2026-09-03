@@ -25,6 +25,10 @@ class RevivalSystem:
         """
         self.player_state_manager = player_state_manager
         self.logger = get_logger("multiplayer.revival")
+        # 네트워크 전파 훅 (t_7846bbe3 §5.5): 호스트 경유 CHARACTER_REVIVAL 브로드캐스트용.
+        # 시그니처: (player_id, character_id, x, y, hp_pct) -> None
+        # 게임 모드 계층에서 설정한다 (호스트만 브로드캐스트, 클라이언트는 수신만).
+        self.on_revival_broadcast = None
     
     def revive_character(
         self,
@@ -191,6 +195,22 @@ class RevivalSystem:
                 f"({revival_method}, HP: {character.current_hp}/{max_hp_display or '?'}, "
                 f"위치: ({spawn_x}, {spawn_y}))"
             )
+            
+            # 네트워크 전파 훅 (t_7846bbe3 §5.5): 부활 사실을 호스트가 전 파티원에게 브로드캐스트.
+            # 훅이 설정되어 있고(호스트 경로) 실패해도 부활 자체는 성공으로 유지한다.
+            if self.on_revival_broadcast is not None:
+                try:
+                    owner_pid = (
+                        getattr(character, 'player_id', None)
+                        or getattr(character, 'owner_player_id', None)
+                        or (getattr(player, 'player_id', None) if player is not None else None)
+                    )
+                    hp_pct = None
+                    if max_hp:
+                        hp_pct = character.current_hp / max_hp
+                    self.on_revival_broadcast(owner_pid, getattr(character, 'id', character.name), spawn_x, spawn_y, hp_pct)
+                except Exception as e:
+                    self.logger.warning(f"부활 네트워크 전파 실패 (무시 가능): {e}")
             
             return True
         

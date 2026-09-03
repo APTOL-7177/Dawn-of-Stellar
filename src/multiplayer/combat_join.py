@@ -33,9 +33,13 @@ class CombatJoinHandler:
         
         # 현재 진행 중인 전투 위치 추적
         self.active_combat_positions: Dict[str, Tuple[int, int]] = {}  # {combat_id: (x, y)}
-        
+        # 전투 시작 시각 추적 (late-join grace window 검증용, t_7846bbe3 §5.4)
+        self.combat_start_times: Dict[str, float] = {}  # {combat_id: start_monotonic_time}
         # 이미 합류한 플레이어 추적 (중복 합류 방지)
         self.joined_players: Dict[str, Set[str]] = {}  # {combat_id: {player_id, ...}}
+
+        # late-join 허용 시간 (초). 전투 시작 후 이 시간이 지나면 합류 거부
+        self.late_join_grace = MultiplayerConfig.combat_join_grace_window
     
     def register_combat(self, combat_id: str, position: Tuple[int, int]):
         """
@@ -60,6 +64,7 @@ class CombatJoinHandler:
                 return
             
             self.active_combat_positions[combat_id] = position
+            self.combat_start_times[combat_id] = time.time()
             if combat_id not in self.joined_players:
                 self.joined_players[combat_id] = set()
             self.logger.info(f"전투 등록: {combat_id} at {position}")
@@ -75,6 +80,8 @@ class CombatJoinHandler:
         """
         if combat_id in self.active_combat_positions:
             del self.active_combat_positions[combat_id]
+        if combat_id in self.combat_start_times:
+            del self.combat_start_times[combat_id]
         if combat_id in self.joined_players:
             del self.joined_players[combat_id]
         self.logger.info(f"전투 해제: {combat_id}")
@@ -157,6 +164,67 @@ class CombatJoinHandler:
                 nearby_combats.append(combat_id)
         
         return nearby_combats
+    
+    def validate_late_join(
+        self,
+        player_id: str,
+        combat_id: str,
+        epoch: int,
+        combat_epoch_start: Optional[float] = None,
+        server_epoch: Optional[int] = None,
+        requester_alive: bool = True,
+        grace_window: Optional[float] = None,
+    ) -> Tuple[bool, Optional[str]]:
+        """late COMBAT_JOIN 정합 검증 (t_7846bbe3 §5.4)
+
+        검증 순서: (a) epoch 일치, (b) 전투 active, (c) 요청자 생존,
+        (d) 중복 합류, (e) grace window 이내.
+
+        Args:
+            player_id: 합류 요청 플레이어 ID
+            combat_id: 대상 전투 ID
+            epoch: 요청 메시지의 세션 epoch
+            combat_epoch_start: 전투 시작 시각 (monotonic). None이면 내부 기록 사용
+            server_epoch: 호스트의 현재 세션 epoch
+            requester_alive: 요청자 생존 여부
+            grace_window: 허용 시간(초) override. None이면 기본값 사용
+
+        Returns:
+            (허용 여부, 거부 사유 — 허용 시 None)
+        """
+        # (a) epoch 일치
+        if server_epoch is not None and epoch != server_epoch:
+            self.logger.warning(f"late join 거부 (epoch 불일치): player={player_id}, {epoch} != {server_epoch}")
+            return False, "epoch_mismatch"
+
+        # (b) 전투 active
+        if combat_id not in self.active_combat_positions:
+            return False, "combat_not_active"
+
+        # (c) 요청자 생존
+        if not requester_alive:
+            return False, "requester_dead"
+
+        # (d) 중복 합류
+        if player_id in self.joined_players.get(combat_id, set()):
+            return False, "already_joined"
+
+        # (e) grace window (wall clock 기준 — 전투 시작 시각도 time.time()으로 기록)
+        if grace_window is None:
+            grace_window = self.late_join_grace
+        start = combat_epoch_start
+        if start is None:
+            start = self.combat_start_times.get(combat_id)
+        if start is not None:
+            elapsed = time.time() - start
+            if elapsed > grace_window:
+                self.logger.warning(
+                    f"late join 거부 (grace 초과): player={player_id}, combat={combat_id}, "
+                    f"elapsed={elapsed:.1f}s > grace={grace_window:.1f}s"
+                )
+                return False, "grace_exceeded"
+
+        return True, None
     
     def mark_player_joined(self, combat_id: str, player_id: str, combat_manager: Optional[Any] = None, characters: Optional[List[Any]] = None):
         """

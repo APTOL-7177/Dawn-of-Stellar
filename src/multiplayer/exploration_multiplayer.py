@@ -156,10 +156,84 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 
                 # 전투 시작 핸들러 등록 (COMBAT_START)
                 self._register_combat_start_handler()
+
+                # 탐험 중 파티 상태 동기화 핸들러 등록
+                self._register_party_state_handler()
+                self._last_party_state_sync = 0
                 
                 # 이동 롤백 핸들러 등록 (MOVEMENT_REJECTED)
                 self._register_movement_rejected_handler()
     
+    def _register_party_state_handler(self):
+        """탐험 중 파티 상태 동기화 핸들러 등록 (클라이언트용)"""
+        if not self.network_manager:
+            return
+        from src.multiplayer.protocol import MessageType
+
+        async def handle_party_state(message, sender_id=None):
+            """파티 상태 동기화 수신 (클라이언트)"""
+            try:
+                data = message.data or {}
+                inner = data.get("data", data)
+                party_states = inner.get("party_state")
+                if not party_states or not self.session:
+                    return
+                for pid, chars_data in party_states.items():
+                    if pid == self.local_player_id:
+                        continue  # 자기 자신은 스킵
+                    mp_player = self.session.players.get(pid)
+                    if not mp_player or not hasattr(mp_player, 'party') or not mp_player.party:
+                        continue
+                    for i, cdata in enumerate(chars_data):
+                        if i >= len(mp_player.party):
+                            break
+                        char = mp_player.party[i]
+                        if hasattr(char, 'hp'):
+                            char.hp = cdata.get("hp", char.hp)
+                        if hasattr(char, 'max_hp'):
+                            char.max_hp = cdata.get("max_hp", char.max_hp)
+                        if hasattr(char, 'mp'):
+                            char.mp = cdata.get("mp", char.mp)
+                        if hasattr(char, 'max_mp'):
+                            char.max_mp = cdata.get("max_mp", char.max_mp)
+                        if hasattr(char, 'is_alive'):
+                            char.is_alive = cdata.get("is_alive", char.is_alive)
+                        if hasattr(char, 'level'):
+                            char.level = cdata.get("level", char.level)
+            except Exception as e:
+                self.logger.error(f"파티 상태 동기화 수신 실패: {e}", exc_info=True)
+
+        self.network_manager.register_handler(MessageType.CHARACTER_STATES_UPDATE, handle_party_state)
+
+    def sync_exploration_party_state(self):
+        """호스트: 탐험 중 파티 상태를 주기적으로 브로드캐스트 (0.5초 간격)"""
+        if not self.is_host or not self.network_manager or not self.session:
+            return
+        current_time = time.time()
+        if current_time - self._last_party_state_sync < 0.5:
+            return
+        self._last_party_state_sync = current_time
+
+        party_states = {}
+        for pid, mp_player in self.session.players.items():
+            chars = getattr(mp_player, 'party', []) or []
+            char_list = []
+            for c in chars:
+                char_list.append({
+                    "name": getattr(c, 'name', ''),
+                    "hp": getattr(c, 'hp', 0),
+                    "max_hp": getattr(c, 'max_hp', 1),
+                    "mp": getattr(c, 'mp', 0),
+                    "max_mp": getattr(c, 'max_mp', 1),
+                    "is_alive": getattr(c, 'is_alive', True),
+                    "level": getattr(c, 'level', 1),
+                })
+            party_states[pid] = char_list
+
+        from src.multiplayer.protocol import NetworkMessage, MessageType
+        msg = NetworkMessage(type=MessageType.CHARACTER_STATES_UPDATE, data={"party_state": party_states})
+        self.network_manager.broadcast_sync(msg)
+
     def _register_movement_rejected_handler(self):
         """이동 롤백 핸들러 등록"""
         if not self.network_manager:
@@ -206,6 +280,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.player.y = y
                 
             self.player_positions[self.local_player_id] = (x, y)
+            # 롤백된 위치가 새로운 인가 기준점: 재인가하지 않으면 같은 좌표에서
+            # 이동해도 계속 거부되는 루프에 빠진다.
+            self._reauthorize_player_position(self.local_player_id)
             self.update_fov()
             
             self.logger.info(f"플레이어 위치 롤백됨: ({x}, {y})")
@@ -519,13 +596,17 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             self.logger.error(f"전투 이벤트 구독 실패: {e}", exc_info=True)
     
     def _on_host_migrated(self, data: Dict[str, Any]):
-        """호스트 마이그레이션 이벤트 처리 - EnemySyncManager 호스트 모드 전환"""
+        """호스트 마이그레이션 이벤트 처리 (정책상 비활성화, t_7846bbe3 §5.1)
+
+        P2P 토폴로지에서 host migration은 지원되지 않는다. 이벤트가 발행되더라도
+        로컬 플래그 전환 없이 무시한다(구버전 호스트 혼재 대비 방어 코드).
+        """
         try:
-            is_new_host = data.get("is_new_host", False)
-            if is_new_host and self.enemy_sync:
-                self.enemy_sync.set_host_mode(True)
-                self.is_host = True
-                self.logger.info("호스트 마이그레이션: EnemySyncManager 호스트 모드로 전환")
+            if data.get("is_new_host", False):
+                self.logger.warning(
+                    "multiplayer.host_migrated 이벤트 수신 (비활성화 정책 — 무시): "
+                    f"new_host_id={data.get('new_host_id')}"
+                )
         except Exception as e:
             self.logger.error(f"호스트 마이그레이션 처리 실패: {e}", exc_info=True)
 
@@ -582,6 +663,12 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 활성 전투 해제
             if self.active_combat_id:
                 self.unregister_active_combat(self.active_combat_id)
+
+            # 전투 종료 후 탐험 좌표계 복귀: 모든 플레이어의 이동 인가 기준점을
+            # 현재 위치로 재설정 (전투 중 위치 변경/부활 케이스 커버)
+            if self.session:
+                for pid in list(self.session.players.keys()):
+                    self._reauthorize_player_position(pid)
             
             self.logger.info(f"전투 종료 이벤트 처리: {data.get('state', 'unknown')}")
         except Exception as e:
@@ -844,6 +931,28 @@ class MultiplayerExplorationSystem(ExplorationSystem):
             # 실패 시 기본 결과 반환
             return super()._trigger_combat_with_enemy(enemy)
     
+    def _reauthorize_player_position(self, player_id: str) -> None:
+        """
+        좌표계가 바뀌는 이벤트(스폰/층 전환/부활/재배치 등) 후
+        호스트 이동 인가 기준점을 플레이어의 현재 위치로 재설정한다.
+
+        이것을 호출하지 않으면 새 좌표계 첫 이동이 항상 인접 1칸 검사를
+        통과하지 못해 rejection rollback과 무한 루프에 빠진다.
+        """
+        if not self.session:
+            return
+        player = self.session.players.get(player_id)
+        if player is None:
+            return
+        try:
+            if hasattr(player, 'reset_movement_state'):
+                # 인가 기준점 확정 + 이동 타임스탬프 리셋을 한 번에 처리
+                player.reset_movement_state()
+            elif hasattr(player, 'last_authorized_position'):
+                player.last_authorized_position = (int(player.x), int(player.y))
+        except Exception as e:
+            self.logger.warning(f"인가 위치 재설정 실패 ({player_id}): {e}")
+
     def _initialize_player_positions(self):
         """플레이어 초기 위치 설정"""
         if not self.session or not hasattr(self, 'player'):
@@ -864,6 +973,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     self.dungeon.is_walkable(current_x, current_y)):
                     # 이미 올바른 위치에 있으면 그대로 사용
                     self.player_positions[player_id] = (current_x, current_y)
+                    # 이동 인가 기준 위치 확정 (층 전환/생성 시점 좌표계로 리셋)
+                    mp_player.last_authorized_position = (current_x, current_y)
+                    self._reauthorize_player_position(player_id)
                     self.logger.info(
                         f"플레이어 {mp_player.player_name} 초기 위치 유지: "
                         f"({current_x}, {current_y})"
@@ -931,6 +1043,7 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 mp_player.y = start_y
             
             self.player_positions[player_id] = (mp_player.x, mp_player.y)
+            self._reauthorize_player_position(player_id)
             
             # 로컬 플레이어인 경우 player 객체도 업데이트
             if player_id == self.local_player_id:
@@ -1397,7 +1510,9 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                 self.enemy_sync.update_move_time(current_time)
                 self.last_enemy_move = current_time
         else:
-            # 클라이언트: enemy_sync 캐시에서 위치를 메인 스레드로 동기 적용
+            # 클라이언트: 직접 적 이동/충돌 감지 금지 (호스트가 COMBAT_START 전송)
+            self.collision_enemy = None
+            # enemy_sync 캐시에서 위치를 메인 스레드로 동기 적용
             if self.enemy_sync and self.enemy_sync.enemy_positions and hasattr(self, 'enemies'):
                 for enemy in self.enemies:
                     enemy_id = self.enemy_sync._get_enemy_id(enemy)
@@ -1636,6 +1751,10 @@ class MultiplayerExplorationSystem(ExplorationSystem):
                     # 합류 표시
                     if self.combat_join_handler:
                         self.combat_join_handler.mark_player_joined(combat_id, player_id)
+
+                    # 전투 합류는 좌표계 불변이지만 방어적으로 인가 기준점을
+                    # 현재 위치로 재설정 (부활/재배치 후 합류 케이스 커버)
+                    self._reauthorize_player_position(player_id)
 
                     # Party 객체 갱신 (합류한 캐릭터 포함)
                     if hasattr(self.active_combat_manager, 'party') and hasattr(self.active_combat_manager, 'allies'):

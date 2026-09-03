@@ -116,6 +116,12 @@ class MessageType(Enum):
     REQUEST_STATE_SYNC = "request_state_sync"  # 클라이언트 -> 호스트: 전투 상태 요청
     FULL_STATE_SYNC = "full_state_sync"  # 호스트 -> 클라이언트: 전체 전투 상태 응답
 
+    # 세션 동기화 (재접속·종료 정책, t_7846bbe3 §4.3)
+    SESSION_STALE = "session_stale"  # 호스트 -> 클라이언트: epoch 불일치 거부
+    SESSION_ENDED = "session_ended"  # 호스트 -> 클라이언트: 세션 종료 통보
+    REQUEST_SNAPSHOT = "request_snapshot"  # 클라이언트 -> 호스트: 전체 상태 스냅샷 요청
+    FULL_SNAPSHOT = "full_snapshot"  # 호스트 -> 클라이언트: 통합 상태 스냅샷 (탐험+전투)
+
     # 에러 (테스트용)
     ERROR = "error"
 
@@ -127,6 +133,10 @@ class NetworkMessage:
     player_id: Optional[str] = None
     timestamp: float = 0.0
     data: Optional[Dict[str, Any]] = None
+    # 세션 세대 필드 (t_7846bbe3 §4.3): 기본값 0으로 구버전 메시지와 하위 호환
+    epoch: int = 0
+    revision: int = 0
+    seq: int = 0
     
     def __post_init__(self):
         if self.timestamp == 0.0:
@@ -140,7 +150,10 @@ class NetworkMessage:
             "type": self.type.value,
             "player_id": self.player_id,
             "timestamp": self.timestamp,
-            "data": self.data
+            "data": self.data,
+            "epoch": self.epoch,
+            "revision": self.revision,
+            "seq": self.seq
         }
     
     def to_json(self) -> str:
@@ -178,7 +191,10 @@ class NetworkMessage:
             type=msg_type,
             player_id=data.get("player_id"),
             timestamp=data.get("timestamp", time.time()),
-            data=data.get("data", {})
+            data=data.get("data", {}),
+            epoch=data.get("epoch", 0),
+            revision=data.get("revision", 0),
+            seq=data.get("seq", 0)
         )
     
     @classmethod
@@ -198,19 +214,59 @@ class NetworkMessage:
         json_str = gzip.decompress(compressed).decode('utf-8')
         return cls.from_json(json_str)
 
+    def resolve_sender_player_id(self, sender_id: Optional[str]) -> Optional[str]:
+        """
+        sender-bound 인가: WebSocket 연결에서 파생된 sender_id를 인가의 진실 원천으로 사용.
+
+        - sender_id가 있으면(직접 수신) 그 값이 인가된 플레이어 ID다.
+          payload player_id가 sender와 불일치하면 스푸핑이므로 None을 반환한다.
+        - sender_id가 None이면 (호스트가 자기 메시지를 직접 처리하는 등)
+          payload player_id를 신뢰한다.
+
+        transport sender와 payload actor의 구분:
+        - ClientNetworkManager.HOST_TRANSPORT_SENDER는 "신뢰된 host transport에서
+          왔다"는 사실만 표현하는 표식이다. 플레이어 ID가 아니므로 실제 actor는
+          payload player_id가 담당하며, 호스트가 만든 메시지이므로 이를 신뢰한다.
+        - 그 외의 임의 sender_id는 실제 연결에서 파생된 플레이어 ID로 취급한다.
+
+        Returns:
+            인가된 플레이어 ID. 스푸핑 의심 시 None.
+        """
+        # 지연 import: network.py가 protocol.py를 import하므로 순환 방지.
+        # 표식 상수만 별도 모듈 수준 이름으로 노출해 사용한다.
+        from src.multiplayer.network import ClientNetworkManager
+
+        host_transport = ClientNetworkManager.HOST_TRANSPORT_SENDER
+
+        # host transport 표식은 플레이어 ID가 아니다: "신뢰된 host transport에서
+        # 왔다"는 사실만 보증하며, 실제 actor는 payload player_id가 담당한다.
+        # (호스트가 서명해 브로드캐스트한 메시지이므로 이를 신뢰한다.)
+        if sender_id == host_transport:
+            return self.player_id
+
+        if sender_id:
+            if self.player_id and self.player_id != sender_id:
+                return None
+            return sender_id
+        return self.player_id
+
 
 class MessageBuilder:
     """메시지 빌더 유틸리티 클래스"""
     
     @staticmethod
-    def connect(player_id: str, player_name: str, version: str = "5.0.0") -> NetworkMessage:
-        """연결 메시지 생성"""
+    def connect(player_id: str, player_name: str, version: str = "5.0.0", epoch: int = 0) -> NetworkMessage:
+        """연결 메시지 생성 (protocol_version/epoch 포함, t_7846bbe3 §4.3)"""
+        from src.multiplayer.config import MultiplayerConfig
         return NetworkMessage(
             type=MessageType.CONNECT,
             player_id=player_id,
+            epoch=epoch,
             data={
                 "player_name": player_name,
-                "version": version
+                "version": version,
+                "protocol_version": MultiplayerConfig.protocol_version,
+                "epoch": epoch
             }
         )
     
@@ -588,15 +644,73 @@ class MessageBuilder:
         )
     
     @staticmethod
-    def character_revival(player_id: str, character_id: str, position: Tuple[int, int]) -> NetworkMessage:
-        """캐릭터 부활 메시지 생성"""
+    def character_revival(
+        player_id: str,
+        character_id: str,
+        position: Tuple[int, int],
+        epoch: int = 0,
+        revision: int = 0,
+        hp_pct: Optional[float] = None,
+    ) -> NetworkMessage:
+        """캐릭터 부활 메시지 생성 (epoch/revision 태그, t_7846bbe3 §5.5)"""
+        data = {
+            "character_id": character_id,
+            "x": position[0],
+            "y": position[1]
+        }
+        if hp_pct is not None:
+            data["hp_pct"] = hp_pct
         return NetworkMessage(
             type=MessageType.CHARACTER_REVIVAL,
             player_id=player_id,
+            epoch=epoch,
+            revision=revision,
+            data=data
+        )
+
+    @staticmethod
+    def session_stale(server_epoch: int, client_epoch: int) -> NetworkMessage:
+        """세션 epoch 불일치 거부 메시지 생성 (H→C, t_7846bbe3 §4.1)"""
+        return NetworkMessage(
+            type=MessageType.SESSION_STALE,
+            epoch=server_epoch,
             data={
-                "character_id": character_id,
-                "x": position[0],
-                "y": position[1]
+                "server_epoch": server_epoch,
+                "client_epoch": client_epoch
+            }
+        )
+
+    @staticmethod
+    def session_ended(reason: str = "host_left") -> NetworkMessage:
+        """세션 종료 통보 메시지 생성 (H→C, t_7846bbe3 §5.1)"""
+        return NetworkMessage(
+            type=MessageType.SESSION_ENDED,
+            data={
+                "reason": reason
+            }
+        )
+
+    @staticmethod
+    def request_snapshot(player_id: str, epoch: int = 0) -> NetworkMessage:
+        """전체 상태 스냅샷 요청 메시지 생성 (C→H, t_7846bbe3 §5.3)"""
+        return NetworkMessage(
+            type=MessageType.REQUEST_SNAPSHOT,
+            player_id=player_id,
+            epoch=epoch,
+            data={
+                "epoch": epoch
+            }
+        )
+
+    @staticmethod
+    def full_snapshot(epoch: int, revision: int, snapshot: Dict[str, Any]) -> NetworkMessage:
+        """통합 상태 스냅샷 메시지 생성 (H→C, t_7846bbe3 §5.3)"""
+        return NetworkMessage(
+            type=MessageType.FULL_SNAPSHOT,
+            epoch=epoch,
+            revision=revision,
+            data={
+                "snapshot": snapshot
             }
         )
     

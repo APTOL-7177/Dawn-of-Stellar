@@ -4,26 +4,36 @@
 게임 세션의 생명주기와 플레이어 관리를 담당합니다.
 """
 
+import itertools
 import random
 import time
-from typing import Dict, List, Optional, Set, Any, Tuple
+from typing import Dict, List, Optional, Set, Any, Tuple, Iterable
 from uuid import uuid4
 
 from src.multiplayer.player import MultiplayerPlayer
 from src.multiplayer.config import MultiplayerConfig
 from src.core.logger import get_logger
 
+# 프로세스 단위 세션 epoch 카운터 (t_7846bbe3 §4.1): 불투명 단조 정수
+_epoch_counter = itertools.count(start=int(time.time()) % 100000 + 1)
+
 
 class MultiplayerSession:
     """멀티플레이 세션"""
     
-    def __init__(self, max_players: int = 4, host_id: Optional[str] = None):
+    def __init__(
+        self,
+        max_players: int = 4,
+        host_id: Optional[str] = None,
+        auto_assign_host: bool = True,
+    ):
         """
         세션 초기화
         
         Args:
             max_players: 최대 플레이어 수 (2, 3, 또는 4)
             host_id: 호스트 플레이어 ID (없으면 첫 번째 플레이어가 호스트)
+            auto_assign_host: 호스트가 지정되지 않았을 때 첫 플레이어를 호스트로 지정할지 여부
             
         Raises:
             ValueError: max_players가 2~4 범위를 벗어난 경우
@@ -35,6 +45,12 @@ class MultiplayerSession:
         self.session_id = str(uuid4())
         self.max_players = max_players
         self.host_id = host_id
+        self.auto_assign_host = auto_assign_host
+
+        # 세션 epoch (t_7846bbe3 §4.1): 세션 세대 식별자. 호스트 프로세스 소멸 시 함께 소멸.
+        self.epoch = next(_epoch_counter)
+        # state revision (t_7846bbe3 §4.1): 호스트가 상태 변경마다 증가하는 카운터
+        self.state_revision = 0
         
         self.players: Dict[str, MultiplayerPlayer] = {}
 
@@ -110,7 +126,7 @@ class MultiplayerSession:
         self.players[player.player_id] = player
 
         # 첫 번째 플레이어를 호스트로 설정
-        if self.host_id is None:
+        if self.host_id is None and self.auto_assign_host:
             self.host_id = player.player_id
             player.is_host = True
             self.logger.info(f"세션 {self.session_id}: 플레이어 {player.player_id}를 호스트로 설정")
@@ -263,8 +279,15 @@ class MultiplayerSession:
             },
             "session_seed": self.session_seed,
             "created_at": self.created_at,
-            "is_active": self.is_active
+            "is_active": self.is_active,
+            "epoch": self.epoch,
+            "state_revision": self.state_revision
         }
+
+    def bump_revision(self) -> int:
+        """상태 변경 시 state revision을 1 증가시키고 현재 값을 반환 (t_7846bbe3 §4.1)"""
+        self.state_revision += 1
+        return self.state_revision
     
     def set_floor_ready(self, player_id: str, ready: bool = True) -> None:
         """
@@ -274,11 +297,21 @@ class MultiplayerSession:
             player_id: 플레이어 ID
             ready: 준비 여부
         """
+        if player_id not in self.players:
+            self.logger.warning(f"알 수 없는 플레이어의 층 이동 준비 상태 무시: {player_id}")
+            return
+
         if ready:
             self.floor_ready_players.add(player_id)
         else:
             self.floor_ready_players.discard(player_id)
         self.logger.debug(f"플레이어 {player_id} 층 이동 준비 상태: {ready} (준비: {len(self.floor_ready_players)}/{self.player_count})")
+
+    def replace_floor_ready(self, player_ids: Iterable[str]) -> None:
+        self.floor_ready_players = set(player_ids).intersection(self.players)
+        self.logger.debug(
+            f"층 이동 준비 상태 동기화: {len(self.floor_ready_players)}/{self.player_count}"
+        )
     
     def is_all_ready_for_floor_change(self) -> bool:
         """
