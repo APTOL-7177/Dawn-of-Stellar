@@ -47,9 +47,8 @@ animation:
   icon: 🌀
   color: [200, 200, 255]
   variant_colors: {fire: [255, 100, 0], ice: [100, 200, 255], thunder: [255, 255, 0], wind: [150, 255, 150]}
-sfx:
-  skill: ["skill", "generic_cast"]
   variant_sfx: {fire: ["skill", "fire"], ice: ["skill", "ice"], thunder: ["skill", "bolt"], wind: ["skill", "wind"]}
+sfx: ["skill", "generic_cast"]
 metadata:
   ninpo_seal: true
   seal_add: 1
