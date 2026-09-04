@@ -5,7 +5,7 @@
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from uuid import uuid4
 import time
 
@@ -34,6 +34,7 @@ class MultiplayerPlayer:
     # 네트워크 동기화용
     last_update_time: float = field(default_factory=time.time)
     last_movement_timestamp: float = 0.0  # 마지막 이동 패킷 타임스탬프
+    last_authorized_position: Optional[Tuple[int, int]] = None  # 호스트가 인가한 마지막 위치
     velocity_x: float = 0.0  # 예측용 속도
     velocity_y: float = 0.0
     
@@ -58,6 +59,22 @@ class MultiplayerPlayer:
         self.x = x
         self.y = y
         self.last_update_time = time.time()
+
+    def reset_movement_state(self, x: Optional[int] = None, y: Optional[int] = None):
+        """
+        좌표계가 바뀌는 이벤트(층 전환/스폰/재접속 등) 후 이동 인가 상태를 리셋한다.
+
+        - last_authorized_position을 현재(또는 지정) 위치로 확정한다.
+          미확정 상태로 두면 새 좌표계 첫 이동이 인접 검사 실패로 영구 거부된다.
+        - last_movement_timestamp를 0으로 되돌린다. 층 전환 사이의
+          클럭 차이로 첫 이동이 stale 판정되는 것을 방지한다.
+        """
+        if x is not None:
+            self.x = x
+        if y is not None:
+            self.y = y
+        self.last_authorized_position = (int(self.x), int(self.y))
+        self.last_movement_timestamp = 0.0
     
     def serialize(self) -> Dict[str, Any]:
         """직렬화"""

@@ -125,6 +125,17 @@ class MovementSyncManager:
             self.logger.debug(f"호스트 자신의 이동 메시지 - 릴레이 불필요 (이미 브로드캐스트됨)")
             return
         
+        # sender-bound 인가: 릴레이 전에 sender와 payload player_id 일치 확인.
+        # 릴레이 메시지는 payload가 그대로 전파되므로 인가된 subject로 정규화한다.
+        authorized_player_id = message.resolve_sender_player_id(sender_id)
+        if not authorized_player_id:
+            self.logger.warning(
+                f"PLAYER_MOVE 릴레이 스푸핑 의심 거부: sender={sender_id}, "
+                f"payload player_id={message.player_id}"
+            )
+            return
+        message.player_id = authorized_player_id
+        
         # 클라이언트로부터 받은 메시지를 모든 클라이언트에게 브로드캐스트 (발신자 제외)
         try:
             await self.network_manager.broadcast(message, exclude=sender_id)
@@ -149,7 +160,23 @@ class MovementSyncManager:
             message: 플레이어 이동 메시지
             sender_id: 발신자 ID
         """
-        player_id = message.player_id
+        # sender-bound 인가 (호스트만 강제):
+        # - 호스트: WS 연결에서 파생된 sender_id가 인가의 진실 원천.
+        #   payload player_id가 sender와 불일치하면 스푸핑 시도이므로 거부.
+        # - 클라이언트: 발신자는 신뢰된 host transport이고, payload player_id는
+        #   호스트가 이미 검증한 authoritative subject다 (호스트 본인 또는
+        #   호스트가 릴레이한 타인의 이동). transport 표식을 플레이어 subject와
+        #   혼동해 스푸핑으로 거부하지 않는다.
+        if self.is_host:
+            player_id = message.resolve_sender_player_id(sender_id)
+            if not player_id:
+                self.logger.warning(
+                    f"PLAYER_MOVE 스푸핑 의심 거부: sender={sender_id}, "
+                    f"payload player_id={message.player_id}"
+                )
+                return
+        else:
+            player_id = message.player_id or sender_id
         if not player_id:
             self.logger.warning("플레이어 이동 메시지에 플레이어 ID가 없습니다")
             return
@@ -186,20 +213,57 @@ class MovementSyncManager:
                     f"오래된 이동 패킷 무시: {player_id} (현재: {player.last_movement_timestamp}, 수신: {timestamp})"
                 )
                 return
+            # 미래 타임스탬프 거부 (클럭 스큐/조작 방지) — 허용 오차 5초
+            if timestamp > time.time() + 5.0:
+                self.logger.warning(
+                    f"미래 타임스탬프 이동 패킷 거부: {player_id} (수신: {timestamp})"
+                )
+                return
             player.last_movement_timestamp = timestamp
         
-        # 던전 경계 검사 (exploration과 dungeon이 있는 경우)
-        if self.exploration and hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
-            dungeon = self.exploration.dungeon
-            dungeon_width = getattr(dungeon, 'width', None)
-            dungeon_height = getattr(dungeon, 'height', None)
-            if dungeon_width is not None and dungeon_height is not None:
-                if not (0 <= x < dungeon_width and 0 <= y < dungeon_height):
-                    self.logger.warning(
-                        f"경계 밖 위치 무시: {player_id} ({x}, {y}) "
-                        f"(던전 크기: {dungeon_width}x{dungeon_height})"
-                    )
-                    return
+        # 이동 검증 (호스트 인가): sender의 현재 위치에서 인접 1칸 + 맵 경계 + walkable.
+        # 거부 시 명시적 복구 경로: authoritative 좌표로 클라이언트 롤백 (MOVEMENT_REJECTED).
+        if self.is_host:
+            rejected = False
+            reason = ""
+            # 인접 한 칸 검사 (직전 인가 위치 기준)
+            if hasattr(player, 'last_authorized_position') and player.last_authorized_position:
+                ax, ay = player.last_authorized_position
+                if abs(x - ax) + abs(y - ay) > 1:
+                    rejected = True
+                    reason = f"인접 한 칸 초과: ({ax}, {ay}) -> ({x}, {y})"
+            # 맵 경계 검사
+            if not rejected and self.exploration and hasattr(self.exploration, 'dungeon') and self.exploration.dungeon:
+                dungeon = self.exploration.dungeon
+                dungeon_width = getattr(dungeon, 'width', None)
+                dungeon_height = getattr(dungeon, 'height', None)
+                if dungeon_width is not None and dungeon_height is not None:
+                    if not (0 <= x < dungeon_width and 0 <= y < dungeon_height):
+                        rejected = True
+                        reason = f"맵 경계 밖: ({x}, {y}) (던전 크기: {dungeon_width}x{dungeon_height})"
+                    # walkable 검사
+                    elif hasattr(dungeon, 'is_walkable') and not dungeon.is_walkable(x, y):
+                        rejected = True
+                        reason = f"이동 불가 타일: ({x}, {y})"
+            
+            if rejected:
+                self.logger.warning(f"이동 거부: {player_id} - {reason}")
+                # 명시적 복구 경로: authoritative 상태로 클라이언트를 롤백
+                if self.network_manager and hasattr(self.network_manager, 'send'):
+                    try:
+                        rollback_msg = MessageBuilder.movement_rejected(
+                            reason=reason,
+                            correct_position=(player.x, player.y)
+                        )
+                        import asyncio
+                        asyncio.create_task(
+                            self.network_manager.send(rollback_msg, player_id)
+                        )
+                    except Exception as e:
+                        self.logger.error(f"이동 거부 롤백 전송 실패: {e}", exc_info=True)
+                return
+            # 인가 위치 갱신
+            player.last_authorized_position = (x, y)
 
         # 로컬 플레이어의 이동 메시지는 위치 업데이트 건너뛰기 (이미 로컬에서 처리됨)
         if is_local_player:
@@ -302,6 +366,11 @@ class MovementSyncManager:
             y = pos_data.get("y", player.y)
             
             player.update_position(x, y)
+            # 호스트가 보낸 위치는 이미 인가된 authoritative 좌표이므로
+            # 이동 인가 기준점도 함께 갱신한다 (재접속/동기화 후 첫 이동 거부 방지).
+            # 타임스탬프는 호스트 기준을 따라오므로 리셋하지 않는다.
+            if hasattr(player, 'last_authorized_position'):
+                player.last_authorized_position = (x, y)
     
     async def sync_positions(self):
         """

@@ -2537,6 +2537,15 @@ def execute_bot_action(
                         skill = s
                         break
             if skill:
+                # variants 파생 스킬: greedy 변형 주입 (t_082c6a99)
+                try:
+                    from src.character.llm_bot_helpers import apply_variant_to_action_skill
+                    seal_state = {
+                        e: int(getattr(actor, f"seal_{e}", 0) or 0) for e in ("fire", "ice", "thunder", "wind")
+                    }
+                    apply_variant_to_action_skill(skill, seal_state)
+                except Exception:
+                    pass
                 result = combat_manager.execute_action(actor, "skill", target=target, skill=skill)
             else:
                 result = {"action": "skill", "success": False, "error": f"스킬 없음: {action.skill_id}"}

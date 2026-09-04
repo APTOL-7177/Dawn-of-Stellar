@@ -118,7 +118,21 @@ class PlayerStateManager:
         else:
             # 플레이어 옆에 스폰 (플레이어 위치 기준 상하좌우 중 하나)
             x, y = self._find_spawn_position_near_player(player, dungeon=dungeon)
-        
+
+        # 부활로 플레이어 좌표가 바뀌었을 수 있으므로 이동 인가 기준점을
+        # 부활 위치로 재설정 (rejection rollback 무한 루프 방지).
+        # 타임스탬프도 리셋해 부활 직후 stale 판정을 방지한다.
+        if hasattr(player, 'reset_movement_state'):
+            try:
+                player.reset_movement_state(x=int(x), y=int(y))
+            except (TypeError, ValueError):
+                pass
+        elif hasattr(player, 'last_authorized_position'):
+            try:
+                player.last_authorized_position = (int(x), int(y))
+            except (TypeError, ValueError):
+                pass
+
         # 캐릭터 위치 설정 (Character 객체는 x, y 속성을 가지지 않을 수 있음)
         # 맵 탐험 시스템에서 별도로 관리될 수 있으므로 여기서는 설정하지 않음
         # 대신 부활 위치를 반환하여 상위 시스템에서 처리하도록 함
