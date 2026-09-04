@@ -1,0 +1,27 @@
+id: engineer_deploy_ice_turret
+name: 빙결 포탑 설치
+type: support
+description: '[빙결 속성] 빙결 포탑을 설치한다. HP 공격 0.8배, 40% 확률로 속도 감소.'
+target: self
+costs:
+  mp: 7
+effects:
+- type: gimmick
+  operation: add
+  field: turret_count
+  amount: 1
+  max_value: 999
+- type: gimmick
+  operation: add
+  field: ice_turret_count
+  amount: 1
+  max_value: 999
+metadata:
+  state: deprecated
+  turret_type: ice
+  turret_damage: 0.8
+  slow_chance: 0.4
+animation:
+  icon: ❄️
+  color: [100, 200, 255]
+sfx: ["skill", "ice"]

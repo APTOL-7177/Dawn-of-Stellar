@@ -57,20 +57,13 @@ gimmick:
   danger_max: 99
   overheat_threshold: 100
 skills:
-- engineer_turret_shot
-- engineer_rocket_punch
-- engineer_teamwork
-- engineer_deploy_turret
-- engineer_deploy_fire_turret
-- engineer_deploy_ice_turret
-- engineer_deploy_thunder_turret
-- engineer_deploy_explosive_turret
-- engineer_deploy_heal_turret
-- engineer_cooling_vent
-- engineer_emergency_cooling
-- engineer_full_cooling
-- engineer_turret_enhance
-- engineer_mega_blaster
+- teamwork
+- turret_shot
+- rocket_punch
+- deploy_turret
+- cooling_vent
+- turret_enhance
+- mega_blaster
 bonuses:
   equipment_bonus: 1.15
   special_proc_rate: 1.3

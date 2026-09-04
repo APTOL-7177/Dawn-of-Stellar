@@ -13,6 +13,7 @@ target: self
 costs:
   mp: 10
 metadata:
+  state: deprecated
   spirit_type: water
   gimmick_summon: true
 effects:
@@ -29,6 +30,4 @@ animation:
   - 50
   - 150
   - 255
-sfx:
-- se
-- Summon
+sfx: ["skill", "water"]

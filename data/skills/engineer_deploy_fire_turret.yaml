@@ -1,0 +1,27 @@
+id: engineer_deploy_fire_turret
+name: 화염 포탑 설치
+type: support
+description: '[화염 속성] 화염 포탑을 설치한다. HP 공격 1.2배, 30% 확률로 화상 부여.'
+target: self
+costs:
+  mp: 6
+effects:
+- type: gimmick
+  operation: add
+  field: turret_count
+  amount: 1
+  max_value: 999
+- type: gimmick
+  operation: add
+  field: fire_turret_count
+  amount: 1
+  max_value: 999
+metadata:
+  state: deprecated
+  turret_type: fire
+  turret_damage: 1.2
+  burn_chance: 0.3
+animation:
+  icon: 🔥
+  color: [255, 80, 30]
+sfx: ["skill", "fire"]

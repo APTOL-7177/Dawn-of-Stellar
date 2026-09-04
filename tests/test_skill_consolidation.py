@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 import yaml
 
 from src.character.character import Character
@@ -15,9 +16,9 @@ def test_every_class_has_canonical_skills():
     character_files = sorted(CHARACTER_DATA_DIR.glob("*.yaml"))
 
     assert len(character_files) == 36
-    # active 스킬 8개 + teamwork/ultimate 장착 보강으로 8~9개 허용
+    # 6슬롯 정책: teamwork + 활성 6개 = 정확히 7개 (t_309fb937)
     assert all(
-        len(yaml.safe_load(character_file.read_text(encoding="utf-8"))["skills"]) in (8, 9)
+        len(yaml.safe_load(character_file.read_text(encoding="utf-8"))["skills"]) == 7
         for character_file in character_files
     )
 
@@ -76,14 +77,130 @@ def test_legacy_aliases_resolve_to_canonical_skills():
         assert manager.get_skill(legacy_id) is manager.get_skill(canonical_id)
 
 
-def test_every_class_initializes_with_eight_or_nine_loadable_skills():
+def test_every_class_initializes_with_six_active_slots():
+    """6슬롯 정책: teamwork 포함 정확히 7개, 전부 로드 가능해야 한다 (t_309fb937)."""
     initialize_all_skills()
     manager = get_skill_manager()
 
     for job_id in get_all_job_names():
         character = Character(name=job_id, character_class=job_id)
-        assert len(character.skill_ids) in (8, 9)
+        assert len(character.skill_ids) == 7, f"{job_id}: {len(character.skill_ids)}개 스킬"
+        assert sum(1 for s in character.skill_ids if s.endswith("_teamwork")) == 1
         assert all(manager.get_skill(skill_id) is not None for skill_id in character.skill_ids)
+
+
+def test_design_json_six_slot_match():
+    """설계 artifact(final_6slots.json)와 실제 장착 스킬이 일치해야 한다.
+
+    예외: ninja는 t_082c6a99(속성 인술 단일 파생 통합)로 슬롯 구성이 재설계되어
+    구 설계 artifact와 더 이상 일치하지 않는다 → 신규 구성으로 검증.
+    """
+    import json
+
+    design_path = Path(
+        "C:/Users/pc/AppData/Local/hermes/kanban/boards/lilytia-ops/attachments/"
+        "t_0a54958a/final_6slots.json"
+    )
+    if not design_path.exists():
+        pytest.skip("설계 artifact 없음")
+    design = json.loads(design_path.read_text(encoding="utf-8"))
+    rows = {r["job"]: r for r in design["rows"]}
+
+    # t_082c6a99 재설계 반영: 둔술 4종 → 통합 스킬 1종 + 해인/속성연사/쾌속수리검
+    rows["ninja"]["slots"] = {
+        "basic": "ninja_shuriken",
+        "basic_hp": "ninja_shuriken_hp",
+        "core1": "ninja_elemental_ninjutsu",
+        "survival": "ninja_seal_burst",
+        "aoe": "ninja_elemental_barrage",
+        "finale": "ninja_ultimate",
+    }
+
+    # t_98b95a46 재설계 반영: 정령 소환 4종 → 통합 스킬 1종 + 정령 해방
+    rows["elementalist"]["slots"] = {
+        "basic": "strike",
+        "basic_hp": "spirit_burst",
+        "core1": "elementalist_spirit_summon",
+        "survival": "fusion_firestorm",
+        "aoe": "spirit_release",
+        "finale": "elementalist_ultimate",
+    }
+
+    # t_98b95a46 재설계 반영: 터렛 설치 3종 → 통합 스킬 1종 + 냉각 벤트/포탑 강화
+    rows["engineer"]["slots"] = {
+        "basic": "engineer_turret_shot",
+        "basic_hp": "engineer_rocket_punch",
+        "core1": "engineer_deploy_turret",
+        "survival": "engineer_cooling_vent",
+        "aoe": "engineer_turret_enhance",
+        "finale": "engineer_mega_blaster",
+    }
+
+    initialize_all_skills()
+    manager = get_skill_manager()
+
+    for job_id, row in rows.items():
+        character = Character(name=job_id, character_class=job_id)
+        expected = set(row["slots"].values()) | {row["teamwork_id"]}
+        assert set(character.skill_ids) == expected, (
+            f"{job_id}: 설계 불일치 {set(character.skill_ids) ^ expected}"
+        )
+        assert all(manager.get_skill(sid) is not None for sid in character.skill_ids)
+
+
+def test_migration_trims_legacy_eight_slots_to_six():
+    """구 세이브(8~9개 skill_ids) 복원 시 6슬롯+팀워크로 결정론적 마이그레이션."""
+    from src.persistence.save_system import _migrate_skill_ids
+
+    initialize_all_skills()
+
+    for job_id in get_all_job_names():
+        character = Character(name=job_id, character_class=job_id)
+        legacy = list(character.skill_ids)
+        # 구 세이브 시뮬레이션: deprecated 스킬 하나를 끼워 넣어 8개로 만듦
+        legacy_with_extra = legacy + ["knight_last_stand"] if job_id == "knight" else legacy
+        migrated = _migrate_skill_ids(character, legacy_with_extra, _QuietLogger())
+        assert len(migrated) == 7, f"{job_id}: 마이그레이션 후 {len(migrated)}개"
+        assert set(migrated) == set(character.skill_ids)
+
+
+def test_migration_backfills_partial_saved_ids():
+    """구 세이브가 canonical 7개 중 3개만 담고 있어도 마이그레이션 후 7개 복원 (t_2d43e557)."""
+    from src.persistence.save_system import _migrate_skill_ids
+
+    initialize_all_skills()
+
+    for job_id in get_all_job_names():
+        character = Character(name=job_id, character_class=job_id)
+        partial = list(character.skill_ids)[:3]
+        migrated = _migrate_skill_ids(character, partial, _QuietLogger())
+        assert len(migrated) == 7, f"{job_id}: 부분 세이브 마이그레이션 후 {len(migrated)}개"
+        assert set(migrated) == set(character.skill_ids)
+        # 저장분이 canonical 순서 앞쪽에 유지되는지 (정규 순서 정렬)
+        assert migrated[:3] == partial
+
+
+def test_migration_recovers_from_all_unknown_ids():
+    """구 세이브 skill_ids가 전부 미지원 id면 canonical 7개로 복구 (스킬 0개 방지, t_2d43e557)."""
+    from src.persistence.save_system import _migrate_skill_ids
+
+    initialize_all_skills()
+
+    for job_id in get_all_job_names():
+        character = Character(name=job_id, character_class=job_id)
+        migrated = _migrate_skill_ids(
+            character, ["knight_last_stand", "totally_unknown_skill"], _QuietLogger()
+        )
+        assert len(migrated) == 7, f"{job_id}: 미지원 id 세이브 마이그레이션 후 {len(migrated)}개"
+        assert set(migrated) == set(character.skill_ids)
+
+
+class _QuietLogger:
+    def info(self, *a, **k):
+        pass
+
+    def warning(self, *a, **k):
+        pass
 
 
 def test_canonical_skill_descriptions_are_concise():

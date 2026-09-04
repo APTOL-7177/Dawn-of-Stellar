@@ -1,0 +1,32 @@
+id: engineer_deploy_thunder_turret
+name: 전기 포탑 설치
+type: support
+description: '[번개 속성] 전기 포탑을 설치한다. HP 공격 1.0배, 25% 확률로 마비 부여.'
+target: self
+costs:
+  mp: 8
+effects:
+- type: gimmick
+  operation: add
+  field: turret_count
+  amount: 1
+  max_value: 999
+- type: gimmick
+  operation: add
+  field: thunder_turret_count
+  amount: 1
+  max_value: 999
+metadata:
+  state: deprecated
+  turret_type: thunder
+  turret_damage: 1.0
+  paralyze_chance: 0.25
+animation:
+  icon: ⚡
+  color:
+  - 255
+  - 255
+  - 50
+sfx:
+- skill
+- bolt

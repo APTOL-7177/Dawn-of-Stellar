@@ -2371,6 +2371,13 @@ class Character:
             'gold',
             # 엔지니어
             'heat', 'overheat_stun_turns',
+            # 엔지니어 포탑 카운터 (t_98b95a46 E4: 전투 중 저장 시 포탑 보존)
+            'turret_count', 'fire_turret_count', 'ice_turret_count',
+            'thunder_turret_count', 'explosive_turret_count', 'heal_turret_count',
+            'turret_damage_registry',
+            # 정령술사 (t_98b95a46 D10: 전투 중 저장 시 정령 상태 보존)
+            'spirit_fire', 'spirit_water', 'spirit_wind', 'spirit_earth',
+            'spirit_slots', 'active_resonance', 'resonance_multiplier', 'max_spirits',
             # 사무라이
             'will_gauge',
             # 마검사
@@ -2389,8 +2396,10 @@ class Character:
         ]
         
         for field in gimmick_fields:
-            if hasattr(self, field):
-                value = getattr(self, field)
+            # turret_damage_registry 등 레지스트리 계열은 미설치 시에도 빈 값으로 저장
+            # (로드 시 getattr 폴백과 정합, t_98b95a46 E4)
+            if hasattr(self, field) or field.endswith("_registry"):
+                value = getattr(self, field, {} if field.endswith("_registry") else None)
                 # 리스트/딕셔너리는 복사본 저장
                 if isinstance(value, (list, dict)):
                     state[field] = value.copy() if value else value

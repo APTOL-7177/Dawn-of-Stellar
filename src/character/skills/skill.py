@@ -64,6 +64,16 @@ class Skill:
                 if not is_basic_attack:
                     return False, "침묵 상태로 인해 스킬을 사용할 수 없습니다"
         
+        # 정령 중복 소환 선차단 (t_98b95a46 D3): 비용 차감 전에 거절한다.
+        # execute가 _apply_variant_selection 이후 can_use를 호출하므로
+        # 변형 병합된 metadata.spirit_type을 안전하게 읽을 수 있다.
+        if self.metadata.get("requires_unsummoned_spirit"):
+            spirit = str(self.metadata.get("spirit_type") or "")
+            if spirit not in ("fire", "water", "wind", "earth"):
+                return False, "정령 변형 정보 오류"
+            if getattr(user, f"spirit_{spirit}", 0) > 0:
+                return False, "이미 소환된 정령입니다"
+
         # 비용 체크 (가능성 소환 등에서 skip_cost가 설정되면 건너뛰기)
         if not (context and context.get('skip_cost')):
             for cost in self.costs:
@@ -414,7 +424,7 @@ class Skill:
 
     # 실행 시점에만 임시 주입하고 실행 후 반드시 복원할 메타데이터 오버라이드 키
     # (싱글톤 공유 Skill 인스턴스의 상태 오염 방지, t_83d83e83)
-    _VARIANT_OVERRIDE_KEYS = ("atb_boost", "party_atb_boost", "seal_type", "element")
+    _VARIANT_OVERRIDE_KEYS = ("atb_boost", "party_atb_boost", "seal_type", "element", "spirit_type")
 
     def _apply_variant_selection(self, context: Optional[Dict[str, Any]]) -> None:
         """variants 파생 프리미티브 실행 시점 병합 (t_082c6a99).
@@ -462,6 +472,15 @@ class Skill:
 
         for k, v in override.items():
             meta[k] = v
+
+        # 1b) 변형별 비용 오버라이드 (t_98b95a46 엔지니어 터렛): 실행/검증 시
+        # MPCost가 읽도록 metadata에 기록하고 복원 대상에 포함한다.
+        costs_override = entry.get("costs_override")
+        if costs_override:
+            if context is not None:
+                snapshot = context.setdefault("_variant_snapshot", {})
+                snapshot["_variant_cost_override"] = meta.get("_variant_cost_override")
+            meta["_variant_cost_override"] = dict(costs_override)
 
         # 2) base damage effect에 element 주입 — 실행 시점에만, 종료 시 복원
         element = override.get("element")
@@ -516,6 +535,11 @@ class Skill:
                     meta.pop(k, None)
                 else:
                     meta[k] = snapshot[k]
+        if "_variant_cost_override" in snapshot:
+            if snapshot["_variant_cost_override"] is None:
+                meta.pop("_variant_cost_override", None)
+            else:
+                meta["_variant_cost_override"] = snapshot["_variant_cost_override"]
         meta.pop("_active_variant", None)
 
         for effect, original_element in snapshot.get("_effects", []):

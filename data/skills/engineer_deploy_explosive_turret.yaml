@@ -1,0 +1,27 @@
+id: engineer_deploy_explosive_turret
+name: 폭발 포탑 설치
+type: support
+description: '[화염 속성] 폭발 포탑을 설치한다. HP 공격 1.5배, 전체 광역 공격.'
+target: self
+costs:
+  mp: 10
+effects:
+- type: gimmick
+  operation: add
+  field: turret_count
+  amount: 1
+  max_value: 999
+- type: gimmick
+  operation: add
+  field: explosive_turret_count
+  amount: 1
+  max_value: 999
+metadata:
+  state: deprecated
+  turret_type: explosive
+  turret_damage: 1.5
+  aoe: true
+animation:
+  icon: 💣
+  color: [255, 150, 0]
+sfx: ["skill", "machine"]

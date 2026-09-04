@@ -105,6 +105,32 @@ class GimmickEffect(SkillEffect):
                 # 안전하겠지 특성 (double_turret): 포탑 설치 시 100% 같은 종류 추가 포탑 +1
                 turret_fields = ["turret_count", "fire_turret_count", "ice_turret_count",
                                 "thunder_turret_count", "explosive_turret_count", "heal_turret_count"]
+
+                # 포탑 계수 레지스트리 갱신 (t_98b95a46 E1/E2/E3): 설치 시점의
+                # skill metadata 계수를 캐릭터 필드에 기록 — 자동사격 런타임이 읽는다.
+                if self.field in ("fire_turret_count", "ice_turret_count",
+                                  "thunder_turret_count", "explosive_turret_count",
+                                  "heal_turret_count") and add_value > 0:
+                    try:
+                        skill_meta = (context or {}).get("skill")
+                        skill_meta = getattr(skill_meta, "metadata", None) or {}
+                        turret_type = str(skill_meta.get("turret_type") or self.field.replace("_turret_count", ""))
+                        registry = dict(getattr(user, "turret_damage_registry", None) or {})
+                        entry = dict(registry.get(turret_type) or {})
+                        if skill_meta.get("turret_damage") is not None:
+                            entry["damage"] = float(skill_meta["turret_damage"])
+                        if skill_meta.get("burn_chance") is not None:
+                            entry["burn_chance"] = float(skill_meta["burn_chance"])
+                        if skill_meta.get("slow_chance") is not None:
+                            entry["slow_chance"] = float(skill_meta["slow_chance"])
+                        if skill_meta.get("heal_percent") is not None:
+                            entry["heal_percent"] = float(skill_meta["heal_percent"])
+                        if entry:
+                            registry[turret_type] = entry
+                            user.turret_damage_registry = registry
+                    except Exception:
+                        pass
+
                 if self.field in turret_fields and add_value > 0:
                     def has_trait(char, trait_id_to_check):
                         for attr in ['active_traits', 'available_traits', 'traits', 'selected_traits']:

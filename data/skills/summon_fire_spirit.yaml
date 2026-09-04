@@ -13,6 +13,7 @@ target: self
 costs:
   mp: 12
 metadata:
+  state: deprecated
   spirit_type: fire
   gimmick_summon: true
 effects:
@@ -29,6 +30,4 @@ animation:
   - 255
   - 100
   - 50
-sfx:
-- se
-- Summon
+sfx: ["skill", "fire"]

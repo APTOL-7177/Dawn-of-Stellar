@@ -12,3 +12,12 @@ aliases:
   ninja_ice_ninjutsu: ninja_elemental_ninjutsu
   ninja_thunder_ninjutsu: ninja_elemental_ninjutsu
   ninja_wind_ninjutsu: ninja_elemental_ninjutsu
+  summon_fire_spirit: elementalist_spirit_summon
+  summon_water_spirit: elementalist_spirit_summon
+  summon_wind_spirit: elementalist_spirit_summon
+  summon_earth_spirit: elementalist_spirit_summon
+  engineer_deploy_fire_turret: engineer_deploy_turret
+  engineer_deploy_ice_turret: engineer_deploy_turret
+  engineer_deploy_explosive_turret: engineer_deploy_turret
+  engineer_deploy_heal_turret: engineer_deploy_turret
+  engineer_deploy_thunder_turret: engineer_deploy_turret

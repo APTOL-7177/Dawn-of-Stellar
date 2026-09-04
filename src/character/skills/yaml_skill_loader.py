@@ -435,7 +435,8 @@ def _create_gimmick_effect(data: Dict[str, Any]) -> GimmickEffect:
     return GimmickEffect(
         operation=_map_operation(data.get("operation")),
         field=data.get("field") or data.get("stat") or data.get("gimmick"),
-        value=data.get("value", 0),
+        # amount 우선 (add/consume 계열 YAML 관례), value 폴백 (t_98b95a46)
+        value=data.get("amount", data.get("value", 0)),
         max_value=data.get("max_value"),
         min_value=data.get("min_value"),
         apply_to_target=data.get("apply_to_target", False),
@@ -958,6 +959,10 @@ def _apply_variant_primitive(skill: Skill, variants: Dict[str, Any]) -> None:
                 entry["metadata_override"]["element"] = normalize_element(
                     entry["metadata_override"]["element"]
                 )
+        if opt.get("extra_gimmick"):
+            entry["extra_gimmick"] = [dict(g) for g in opt["extra_gimmick"]]
+        if opt.get("costs_override"):
+            entry["costs_override"] = dict(opt["costs_override"])
         if opt.get("extra_status"):
             entry["extra_status"] = dict(opt["extra_status"])
         if opt.get("extra_buff"):
@@ -967,6 +972,12 @@ def _apply_variant_primitive(skill: Skill, variants: Dict[str, Any]) -> None:
         variant_options[key] = entry
 
         effect_indices = []
+        extra_gimmick = opt.get("extra_gimmick")
+        if extra_gimmick:
+            for g in extra_gimmick:
+                effect = _create_gimmick_effect(g)
+                skill.effects.append(effect)
+                effect_indices.append(len(skill.effects) - 1)
         extra_status = opt.get("extra_status")
         if extra_status:
             status_data = dict(extra_status)

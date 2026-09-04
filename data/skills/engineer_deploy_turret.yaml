@@ -1,0 +1,65 @@
+id: engineer_deploy_turret
+name: 포탑 설치
+type: support
+description: '[터렛 선택] 5종 터렛 설치. 좌/우로 타입 결정: 일반(무료) / 화염(MP6·화상) /
+  빙결(MP7·감속) / 폭발(MP10) / 치유(MP12·회복). 포탑당 열 +1/턴.'
+target: self
+costs:
+  mp: 0
+variants:
+  default: normal
+  cycle_on_repeat: false
+  options:
+    normal:
+      label: 일반 포탑
+      metadata_override:
+        turret_type: normal
+        turret_damage: 0.50
+    fire:
+      label: 화염 포탑 · MP6
+      costs_override: {mp: 6}
+      extra_gimmick:
+      - {operation: add, field: fire_turret_count, amount: 1, max_value: 999}
+      metadata_override:
+        turret_type: fire
+        turret_damage: 0.60
+        burn_chance: 0.20
+    ice:
+      label: 빙결 포탑 · MP7
+      costs_override: {mp: 7}
+      extra_gimmick:
+      - {operation: add, field: ice_turret_count, amount: 1, max_value: 999}
+      metadata_override:
+        turret_type: ice
+        turret_damage: 0.40
+        slow_chance: 0.25
+    explosive:
+      label: 폭발 포탑 · MP10
+      costs_override: {mp: 10}
+      extra_gimmick:
+      - {operation: add, field: explosive_turret_count, amount: 1, max_value: 999}
+      metadata_override:
+        turret_type: explosive
+        turret_damage: 0.70
+    heal:
+      label: 치유 포탑 · MP12
+      costs_override: {mp: 12}
+      extra_gimmick:
+      - {operation: add, field: heal_turret_count, amount: 1, max_value: 999}
+      metadata_override:
+        turret_type: heal
+        heal_percent: 0.15
+base:
+  effects:
+  - type: gimmick
+    operation: add
+    field: turret_count
+    amount: 1
+    max_value: 999
+animation:
+  icon: 🗼
+  color: [150, 150, 150]
+sfx: ["skill", "machine"]
+metadata:
+  turret_type: normal
+  variant_capable: true

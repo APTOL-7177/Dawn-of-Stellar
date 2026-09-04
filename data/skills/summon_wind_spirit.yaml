@@ -13,6 +13,7 @@ target: self
 costs:
   mp: 10
 metadata:
+  state: deprecated
   spirit_type: wind
   gimmick_summon: true
 effects:
@@ -30,5 +31,5 @@ animation:
   - 255
   - 150
 sfx:
-- se
-- Summon
+- skill
+- wind

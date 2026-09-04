@@ -13,6 +13,7 @@ target: self
 costs:
   mp: 10
 metadata:
+  state: deprecated
   spirit_type: earth
   gimmick_summon: true
 effects:
@@ -29,6 +30,4 @@ animation:
   - 139
   - 90
   - 43
-sfx:
-- se
-- Summon
+sfx: ["skill", "earth"]

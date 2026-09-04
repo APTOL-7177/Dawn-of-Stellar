@@ -1,0 +1,26 @@
+id: engineer_turret_enhance
+name: 포탑 강화
+type: buff
+description: '3턴간 포탑 데미지 +50%. 열 +10.'
+target: self
+costs:
+  mp: 9
+effects:
+- type: buff
+  buff_type: stat
+  target: self
+  stats:
+    strength: 0.35
+  duration: 3
+- type: gimmick
+  operation: add
+  field: heat
+  amount: 10
+  max_value: 100
+metadata:
+  turret_enhance: true
+  heat_change: 10
+animation:
+  icon: ⚙️
+  color: [200, 200, 100]
+sfx: ["skill", "haste"]

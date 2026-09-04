@@ -1,0 +1,26 @@
+id: engineer_deploy_heal_turret
+name: 치유 포탑 설치
+type: support
+description: '치유 포탑을 설치한다. 매 턴 가장 HP가 낮은 아군을 공격력의 10%만큼 회복.'
+target: self
+costs:
+  mp: 12
+effects:
+- type: gimmick
+  operation: add
+  field: turret_count
+  amount: 1
+  max_value: 999
+- type: gimmick
+  operation: add
+  field: heal_turret_count
+  amount: 1
+  max_value: 999
+metadata:
+  state: deprecated
+  turret_type: heal
+  heal_percent: 0.1
+animation:
+  icon: 💚
+  color: [50, 220, 100]
+sfx: ["skill", "cure"]

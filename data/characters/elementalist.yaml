@@ -180,21 +180,11 @@ traits:
 skills:
 - teamwork
 - strike
+- spirit_summon
 - spirit_burst
-- summon_fire_spirit
-- summon_water_spirit
-- summon_wind_spirit
-- summon_earth_spirit
 - fusion_firestorm
-- fusion_steam
-- fusion_lava
-- fusion_blizzard
-- fusion_mudtrap
-- fusion_sandstorm
 - spirit_release
-- spirit_swap
-- natures_law
-- elementalist_ultimate
+- ultimate
 bonuses:
   mp_multiplier: 1.1
   magic_damage: 1.08

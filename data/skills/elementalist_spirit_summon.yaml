@@ -1,0 +1,41 @@
+id: elementalist_spirit_summon
+name: 정령 소환 - 4대 정령
+type: summon
+description: '[정령 선택] 4대 정령 소환. 좌/우로 결정: 화염(마공+20%·화상) / 물(MP+5·힐+30%)
+  / 바람(속도+30%·회피+15%) / 대지(방어+30%·HP+3). 3번째 소환 시 가장 오래된 정령 교체.'
+target: self
+costs:
+  mp: 10
+variants:
+  default: fire
+  cycle_on_repeat: false
+  options:
+    fire:
+      label: 화염 정령
+      metadata_override:
+        spirit_type: fire
+    water:
+      label: 물 정령
+      metadata_override:
+        spirit_type: water
+    wind:
+      label: 바람 정령
+      metadata_override:
+        spirit_type: wind
+    earth:
+      label: 대지 정령
+      metadata_override:
+        spirit_type: earth
+base:
+  effects:
+  - type: custom
+    handler: summon_spirit
+animation:
+  icon: 🔮
+  color: [255, 200, 100]
+sfx: ["skill", "summon"]
+metadata:
+  gimmick_summon: true
+  requires_unsummoned_spirit: true
+  variant_policy: elementalist_fusion
+  variant_capable: true

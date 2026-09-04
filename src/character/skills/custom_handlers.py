@@ -210,10 +210,21 @@ def execute_custom_handler(handler_name: str, args: Dict[str, Any], user, target
 
         # === 정령술사 지원 ===
         if name == "summon_spirit":
+            # 변형 인지 (t_98b95a46 D4): args.spirit(구 스킬 호환) →
+            # 변형 병합 직후의 skill.metadata.spirit_type 순으로 해상.
             spirit = args.get("spirit") or args.get("spirit_type")
+            if not spirit:
+                try:
+                    skill_meta = getattr(context.get("skill"), "metadata", {}) or {}
+                    spirit = skill_meta.get("spirit_type")
+                except Exception:
+                    spirit = None
             if spirit:
-                GimmickUpdater.summon_spirit(user, str(spirit))
-            return EffectResult(effect_type=EffectType.GIMMICK, success=bool(spirit))
+                result = GimmickUpdater.summon_spirit(user, str(spirit))
+                if result is False:
+                    return EffectResult(effect_type=EffectType.GIMMICK, success=False, message="정령 소환 실패")
+                return EffectResult(effect_type=EffectType.GIMMICK, success=True, message=f"{spirit} 정령 소환")
+            return EffectResult(effect_type=EffectType.GIMMICK, success=False)
         if name == "summon_random_spirits":
             spirits = ["fire", "water", "wind", "earth"]
             count = _int_arg(args, "count", default=2)

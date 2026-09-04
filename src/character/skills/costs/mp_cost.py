@@ -18,6 +18,12 @@ class MPCost(SkillCost):
         # 기본 비용에 1.5배 적용
         base_cost = self.amount * 1.5
 
+        # 변형별 비용 오버라이드 (t_98b95a46): variants costs_override.mp가 있으면
+        # 기본 비용을 대체한다 (레벨/과부하/난이도/특성 배율은 동일 적용).
+        variant_cost = metadata.get("_variant_cost_override") if metadata else None
+        if isinstance(variant_cost, dict) and variant_cost.get("mp") is not None:
+            base_cost = variant_cost["mp"] * 1.5
+
         # 레벨당 5% MP 비용 증가 (레벨 1 = 100%, 레벨 2 = 105%, ..., 레벨 10 = 145%)
         if hasattr(user, 'level') and user.level > 1:
             level_multiplier = 1.0 + (user.level - 1) * 0.05

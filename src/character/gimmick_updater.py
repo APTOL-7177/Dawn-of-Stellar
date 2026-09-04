@@ -5674,22 +5674,39 @@ class GimmickUpdater:
             explosive_count = getattr(character, 'explosive_turret_count', 0)
             heal_count = getattr(character, 'heal_turret_count', 0)
 
-            # 포탑 종류별 배율 (밸런스 상향)
+            # 포탑 종류별 배율 — 설치 시점 기록 레지스트리 우선 (t_98b95a46 E1/E2/E3),
+            # 미등록 타입은 기존 하드코딩값 폴백 (구 세이브 호환)
+            _FALLBACK_TURRET_VALUES = {
+                "fire": {"damage": 0.60},
+                "ice": {"damage": 0.40},
+                "thunder": {"damage": 0.50},
+                "explosive": {"damage": 0.70},
+                "heal": {"damage": 0.0, "heal_percent": 0.15},
+                "normal": {"damage": 0.50},
+            }
+            registry = getattr(character, 'turret_damage_registry', None) or {}
+
+            def _turret_value(ttype, key):
+                entry = registry.get(ttype)
+                if isinstance(entry, dict) and entry.get(key) is not None:
+                    return float(entry[key])
+                return _FALLBACK_TURRET_VALUES.get(ttype, {}).get(key, 0.0)
+
             special_turrets = []
             if fire_count > 0:
-                special_turrets.extend([("fire", 0.60)] * fire_count)
+                special_turrets.extend([("fire", _turret_value("fire", "damage"))] * fire_count)
             if ice_count > 0:
-                special_turrets.extend([("ice", 0.40)] * ice_count)
+                special_turrets.extend([("ice", _turret_value("ice", "damage"))] * ice_count)
             if thunder_count > 0:
-                special_turrets.extend([("thunder", 0.50)] * thunder_count)
+                special_turrets.extend([("thunder", _turret_value("thunder", "damage"))] * thunder_count)
             if explosive_count > 0:
-                special_turrets.extend([("explosive", 0.70)] * explosive_count)
+                special_turrets.extend([("explosive", _turret_value("explosive", "damage"))] * explosive_count)
             if heal_count > 0:
-                special_turrets.extend([("heal", 0.0)] * heal_count)
+                special_turrets.extend([("heal", _turret_value("heal", "damage"))] * heal_count)
 
             # 일반 포탑
             normal_count = turret_count - len(special_turrets)
-            special_turrets.extend([("normal", 0.50)] * normal_count)
+            special_turrets.extend([("normal", _turret_value("normal", "damage"))] * normal_count)
 
             if i < len(special_turrets):
                 turret_type, damage_multiplier = special_turrets[i]
@@ -5706,8 +5723,9 @@ class GimmickUpdater:
                     # HP 비율이 가장 낮은 아군 선택
                     heal_target = min(allies, key=lambda a: getattr(a, 'current_hp', 1) / max(1, getattr(a, 'max_hp', 1)))
                     
-                    # 힐량 계산 (공격력 30% 의 1/2 로 적용)
-                    heal_amount = max(1, int((attack_power * 0.30) / 2))
+                    # 힐량 계산 — 설치 시점 heal_percent 레지스트리 우선 (t_98b95a46 E3)
+                    heal_percent = _turret_value("heal", "heal_percent") or 0.15
+                    heal_amount = max(1, int(attack_power * heal_percent))
                     
                     actual_heal = 0
                     if hasattr(heal_target, 'heal'):
@@ -5803,8 +5821,9 @@ class GimmickUpdater:
             # 상태 효과 적용
             status_applied = ""
             # 포탑 강화 특성으로 상태이상 확률 +10%
-            fire_chance = 0.20
-            ice_chance = 0.25
+            # 확률도 설치 시점 레지스트리 우선 (t_98b95a46 E2), 미등록 시 런타임 기존값
+            fire_chance = _turret_value("fire", "burn_chance") or 0.20
+            ice_chance = _turret_value("ice", "slow_chance") or 0.25
             thunder_chance = 0.15
             
             if hasattr(character, 'active_traits') and 'turret_reinforcement' in character.active_traits:
