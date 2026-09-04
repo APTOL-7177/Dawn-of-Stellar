@@ -18,51 +18,20 @@ from src.core.logger import get_logger
 logger = get_logger("custom_handler")
 
 # 단순 스텁 처리할 커스텀 핸들러 목록 (경고 없이 성공 처리)
+# 이전에 구현된 이펙트(atb_boost, chain_cast 등)와 이번에 구현된
+# 35개 이펙트 모두 전용 Effect 클래스로 이전 완료.
+# 남은 항목: 이미 다른 곳에서 처리되는 핸들러만 유지
 STUB_HANDLERS = {
-    "consume_afterimage",
-    "afterimage_scaling",
-    "summon_phantom",
-    "electrocution",
-    "generate_possibility",
-    "phantom_bonus_debuff",
-    "phantom_convergence_bonus",
-    "consume_option",
-    "glyph",
-    "brand",
-    "overload",
-    "transmutation",
-    "fate_copy",
-    "on_evade_trigger",
-    "phantom_damage_redirect",
-    "release_all_possibilities",
     "chain_cast",
-    "time_fracture",
-    "clear_slots",
-    "consume_all_phantoms",
     "multi_hit_hp_damage",
-    "consume_gimmick",
     "damage_share",
-    "gain_gimmick",
     "revive",
-    "charge_afterimage",
-    "phantom_echo_damage",
-    "apply_trap",
-    "overwrite_fate",
-    "thermal_shock",
     "temporal_heal",
     "random_hp_hits",
     "atb_boost",
-    "summon_possibility",
-    "phantom_priority",
-    "phantom_counter",
     "chain_damage",
     "atb_charge",
     "self_atb_cost",
-    "time_crossing",
-    "time_storm",
-    "convergence_bonus",
-    "shield_damage",
-    "area_damage",
 }
 
 def _as_list(value: Any) -> List[Any]:

@@ -5038,7 +5038,7 @@ class GimmickUpdater:
                 if not t or not getattr(t, "is_alive", True):
                     continue
                 try:
-                    base_mult = 0.5 + ((getattr(user, "steel_line", 0) + getattr(user, "mana_line", 0)) / 200.0) * 0.85
+                    base_mult = 1.2 + ((getattr(user, "steel_line", 0) + getattr(user, "mana_line", 0)) / 200.0) * 1.8
                     spark_mult = base_mult * arc.get("bonus", 1.0)
                     if GimmickUpdater._has_trait(user, "circuit_overdrive"):
                         spark_mult *= 1.2
@@ -7096,7 +7096,12 @@ def _handle_skill_execute(event):
 
     # 닌자: 인법 연쇄 시스템 - 인(印) 축적
     if getattr(user, "gimmick_type", None) == "ninpo_chain":
-        meta = getattr(skill, "metadata", {}) or {}
+        meta = dict(getattr(skill, "metadata", {}) or {})
+        # 변형 실행 시점 effective 값 우선 (metadata는 execute 종료 후 복원됨, t_83d83e83)
+        event_ctx = event.get("context") or {}
+        variant_meta = event_ctx.get("_variant_meta")
+        if isinstance(variant_meta, dict):
+            meta.update(variant_meta)
         if meta.get("ninpo_seal"):
             seal_type = meta.get("seal_type", "wind")
             seal_add = meta.get("seal_add", 1)

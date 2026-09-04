@@ -58,10 +58,10 @@ gimmick:
     '
   max_seals: 4
   seal_types:
-    - fire
-    - ice
-    - thunder
-    - wind
+  - fire
+  - ice
+  - thunder
+  - wind
   chain_effects:
     2:
       name: 속성 강화
@@ -119,19 +119,12 @@ traits:
     atb_bonus: 0.95
 skills:
 - teamwork
-- ninja_shuriken
-- ninja_shuriken_hp
-- ninja_fire_ninjutsu
-- ninja_ice_ninjutsu
-- ninja_thunder_ninjutsu
-- ninja_wind_ninjutsu
-- ninja_elemental_edge
-- ninja_shadow_clone
-- ninja_smoke_bomb
-- ninja_haste_support
-- ninja_seal_burst
-- ninja_elemental_barrage
-- ninja_ultimate
+- shuriken
+- shuriken_hp
+- elemental_ninjutsu
+- seal_burst
+- elemental_barrage
+- ultimate
 bonuses:
   speed_multiplier: 1.12
   critical_rate: 1.15

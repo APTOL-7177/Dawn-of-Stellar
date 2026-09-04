@@ -63,17 +63,9 @@ class HealEffect(SkillEffect):
                     is_reviving = True
                     # 부활 처리: is_alive를 True로 설정
                     t.is_alive = True
-                    # 멀티플레이: 유령 상태 해제 (전투 중 부활)
+                    # 멀티플레이: 부활한 캐릭터만 유령 상태 해제
                     if hasattr(t, 'is_ghost') and t.is_ghost:
                         t.is_ghost = False
-                        # 같은 플레이어의 다른 캐릭터도 유령 해제
-                        t_pid = getattr(t, 'player_id', None) or getattr(t, 'owner_player_id', None)
-                        if t_pid and context and context.get('combat_manager'):
-                            cm = context['combat_manager']
-                            for ally in getattr(cm, 'allies', []):
-                                if (getattr(ally, 'player_id', None) or getattr(ally, 'owner_player_id', None)) == t_pid:
-                                    if hasattr(ally, 'is_ghost'):
-                                        ally.is_ghost = False
             elif not getattr(t, 'is_alive', True):
                 # 일반 회복 스킬에서는 죽은 대상 스킵
                 continue

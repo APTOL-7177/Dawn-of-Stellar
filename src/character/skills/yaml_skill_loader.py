@@ -23,7 +23,9 @@ from src.character.skills.effects.taunt_effect import TauntEffect
 from src.character.skills.effects.protect_effect import ProtectEffect
 from src.character.skills.effects.fixed_damage_effect import FixedDamageEffect
 from src.character.skills.effects.shield_effect import ShieldEffect
-from src.character.skills.effects.atb_effect import AtbBoostEffect, AtbChargeEffect, SelfAtbCostEffect
+from src.character.skills.effects.atb_effect import (
+    AtbBoostEffect, AtbChargeEffect, SelfAtbCostEffect, SelfAtbCostPercentEffect
+)
 from src.character.skills.effects.multi_hit_effect import MultiHitHpDamageEffect, RandomHpHitsEffect
 from src.character.skills.effects.chain_effect import ChainCastEffect, ChainDamageEffect
 from src.character.skills.effects.temporal_heal_effect import TemporalHealEffect
@@ -511,19 +513,31 @@ def _create_lifesteal_effect(data: Dict[str, Any]):
 def _create_atb_boost_effect(data: Dict[str, Any]) -> AtbBoostEffect:
     """atb_boost 이펙트 빌더 - 대상 ATB를 고정값만큼 증가"""
     return AtbBoostEffect(
-        amount=int(data.get("amount", 500)),
+        amount=int(data.get("amount", data.get("value", 500))),
         is_party_wide=data.get("is_party_wide", False),
     )
 
 
 def _create_atb_charge_effect(data: Dict[str, Any]) -> AtbChargeEffect:
     """atb_charge 이펙트 빌더 - 대상 ATB를 퍼센트만큼 충전"""
-    return AtbChargeEffect(percent=float(data.get("percent", 50)))
+    return AtbChargeEffect(percent=float(data.get("percent", data.get("value", 50))))
 
 
-def _create_self_atb_cost_effect(data: Dict[str, Any]) -> SelfAtbCostEffect:
-    """self_atb_cost 이펙트 빌더 - 시전자 ATB 추가 소비"""
-    return SelfAtbCostEffect(amount=int(data.get("amount", 300)))
+def _create_self_atb_cost_effect(data: Dict[str, Any]):
+    """self_atb_cost 이펙트 빌더 - 시전자 ATB 추가 소비
+
+    amount(고정값) 또는 percent(비율)를 지원한다. time_accel.yaml은
+    value: 0.5 (50% 소비) 형태이므로 value를 percent로도 해석한다.
+    """
+    percent = data.get("percent")
+    amount = data.get("amount")
+    value = data.get("value")
+    if amount is not None:
+        return SelfAtbCostEffect(amount=int(amount))
+    ratio = float(percent if percent is not None else (value if value is not None else 0))
+    if ratio <= 1.0:
+        ratio *= 100.0
+    return SelfAtbCostPercentEffect(percent=ratio)
 
 
 def _create_multi_hit_hp_damage_effect(data: Dict[str, Any]) -> MultiHitHpDamageEffect:

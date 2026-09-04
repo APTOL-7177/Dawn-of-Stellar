@@ -1,14 +1,25 @@
 """Skill Manager - 스킬 관리자"""
 from typing import Any, Dict, List, Optional
+import yaml
 from src.character.skills.skill import Skill, SkillResult
 from src.core.event_bus import event_bus, Events
 from src.core.logger import get_logger
+from src.core.paths import get_project_root
+
+
+def _load_skill_aliases() -> Dict[str, str]:
+    alias_path = get_project_root() / "data" / "skill_aliases.yaml"
+    if not alias_path.exists():
+        return {}
+    with alias_path.open("r", encoding="utf-8") as alias_file:
+        return yaml.safe_load(alias_file).get("aliases", {})
 
 class SkillManager:
     """스킬 관리자"""
     def __init__(self):
         self.logger = get_logger("skill_manager")
         self._skills = {}
+        self._aliases = _load_skill_aliases()
         # self._cooldowns = {}  # 쿨다운 시스템 제거됨
 
     def register_skill(self, skill: Skill):
@@ -16,9 +27,17 @@ class SkillManager:
         self._skills[skill.skill_id] = skill
         self.logger.debug(f"스킬 등록: {skill.name}")
 
+    def resolve_skill_id(self, skill_id: str) -> str:
+        resolved_id = skill_id
+        seen_ids = set()
+        while resolved_id in self._aliases and resolved_id not in seen_ids:
+            seen_ids.add(resolved_id)
+            resolved_id = self._aliases[resolved_id]
+        return resolved_id
+
     def get_skill(self, skill_id: str) -> Optional[Skill]:
         """스킬 가져오기"""
-        return self._skills.get(skill_id)
+        return self._skills.get(self.resolve_skill_id(skill_id))
 
     def get_skills_for_character(self, character) -> List[Skill]:
         """캐릭터가 사용 가능한 스킬 목록 반환"""
@@ -202,6 +221,35 @@ class SkillManager:
                 missing_names = ", ".join(missing)
                 return SkillResult(success=False, message=f"융합 실패: 정령 부족 ({missing_names})")
 
+        # 인법연쇄 - 해인 (D2: damage_per_seal/requires_seals 실제 실행, t_082c6a99)
+        if meta.get("ninpo_burst") or meta.get("requires_seals"):
+            total_seals = sum(
+                int(getattr(user, f"seal_{e}", 0) or 0) for e in ("fire", "ice", "thunder", "wind")
+            )
+            required = int(meta.get("requires_seals", 0) or 0)
+            if total_seals < required:
+                return SkillResult(
+                    success=False,
+                    message=f"인(印) {required}개 이상 필요 (현재: {total_seals})"
+                )
+            damage_per_seal = meta.get("damage_per_seal") or {}
+            if damage_per_seal:
+                # 보유 인 수 기준 단계 결정 (3인 보유 시 3단계)
+                step = 0
+                for threshold in sorted(int(k) for k in damage_per_seal.keys()):
+                    if total_seals >= threshold:
+                        step = threshold
+                if step:
+                    stage = damage_per_seal.get(str(step)) or damage_per_seal.get(step)
+                    if stage:
+                        mult = float(stage.get("multiplier", 1.0))
+                        context["power_multiplier"] = context.get("power_multiplier", 1.0) * mult
+                        if stage.get("aoe"):
+                            skill.is_aoe = True
+                        if stage.get("all_elements"):
+                            # 공유 이펙트 비-mutating: 실행 context에 전달 (t_83d83e83)
+                            context["_burst_all_elements"] = True
+
         event_bus.publish(Events.SKILL_CAST_START, {"skill": skill, "user": user, "target": target})
 
         # 데드아이 특수 처리: 모든 탄환만큼 반복 실행
@@ -329,7 +377,7 @@ class SkillManager:
                 from src.character.gimmick_updater import GimmickUpdater
                 GimmickUpdater.release_all_spirits(user)
 
-        event_bus.publish(Events.SKILL_EXECUTE, {"skill": skill, "user": user, "target": target, "result": result})
+        event_bus.publish(Events.SKILL_EXECUTE, {"skill": skill, "user": user, "target": target, "result": result, "context": context})
         return result
 
     def _play_skill_sfx(self, skill: Skill):

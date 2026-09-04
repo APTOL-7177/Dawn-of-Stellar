@@ -90,7 +90,7 @@ class DamageEffect(SkillEffect):
         alive_targets_processed = 0
         
         for i, single_target in enumerate(targets):
-            if not single_target.is_alive:
+            if single_target is None or not single_target.is_alive:
                 continue
             
             # AOE HP 공격의 경우, 첫 번째 타겟이 아닌 경우 BRV를 초기값으로 복원
@@ -428,6 +428,12 @@ class DamageEffect(SkillEffect):
                 context = {}
             context['force_critical'] = True
         
+        # 최종 속성 결정: 4인 해인 전속성(context 플래그) > 이펙트 자체 속성 (t_83d83e83)
+        if context and context.get('_burst_all_elements'):
+            effective_element = "all"
+        else:
+            effective_element = self.element
+
         if self.damage_type == DamageType.BRV:
             # 물리/마법 구분
             # 탄환 정보를 kwargs에 전달 (관통탄 방어 관통력용)
@@ -439,7 +445,7 @@ class DamageEffect(SkillEffect):
             
             if self.stat_type in ("magical", "hybrid"):
                 # 원소 속성 전달 (적 저항/약점 적용)
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element, **calc_kwargs)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=effective_element, **calc_kwargs)
             else:
                 dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult, **calc_kwargs)
 
@@ -503,7 +509,7 @@ class DamageEffect(SkillEffect):
             # 물리/마법 구분 (hybrid는 magical로 처리)
             if self.stat_type in ("magical", "hybrid"):
                 # 원소 속성 전달 (적 저항/약점 적용)
-                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=self.element)
+                dmg_result = self.damage_calculator.calculate_magic_damage(user, target, final_mult, element=effective_element)
             else:
                 dmg_result = self.damage_calculator.calculate_brv_damage(user, target, final_mult)
 

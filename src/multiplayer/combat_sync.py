@@ -848,6 +848,24 @@ class CombatSyncManager:
                     target.is_alive = False
                     target.current_hp = 0
 
+                # 부활 적용 (t_ceed55de): revive_crystal/부활 스킬 결과의 hp_restored 반영.
+                # 호스트가 부활시킨 대상을 클라이언트에서도 생존 상태로 복원한다.
+                if result.get("revived") and target:
+                    hp_restored = result.get("hp_restored")
+                    if hp_restored:
+                        target.current_hp = hp_restored
+                    elif not getattr(target, "current_hp", 0):
+                        target.current_hp = int(getattr(target, "max_hp", 100) * 0.5)
+                    target.is_alive = True
+                    if hasattr(target, "is_ghost"):
+                        target.is_ghost = False
+                    if hasattr(target, "status_effects") and hasattr(target.status_effects, "clear"):
+                        target.status_effects.clear()
+                    self.logger.info(
+                        f"원격 부활 동기화: {getattr(target, 'name', target_id)} 부활 "
+                        f"(HP: {target.current_hp})"
+                    )
+
             # ATB 소비 (원격 액터의 ATB 리셋)
             if self.combat_manager and hasattr(self.combat_manager, 'atb'):
                 self.combat_manager.atb.consume_atb(actor)
