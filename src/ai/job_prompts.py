@@ -595,7 +595,9 @@ JOB_STRATEGIES: Dict[str, JobStrategy] = {
         priority_actions=["skill_seal_stack", "skill_ninjutsu", "hp_attack"],
         gimmick_rules=[
             "인(印) 4개 축적 후 인법진 발동으로 속성 폭딜",
-            "속성 인(印) 조합으로 발동 인술 결정 — 파이어/워터/윈드/어스 조합 유의",
+            "오둔-오의(ninja_elemental_ninjutsu)는 속성 변형 스킬 — 화/빙/뇌/풍 중 선택, 좌/우 방향키 또는 variant 필드로 지정",
+            "변형 선택 API: {\"skill_id\": \"ninja_elemental_ninjutsu\", \"variant\": \"fire|ice|thunder|wind\"}",
+            "가장 낮은 인(印) 속성을 우선 사용해 만화경 인법(4인)까지의 행동 수를 줄인다",
             "고속 이동(분신술)으로 회피율 확보 후 근접 연격",
             "아군 속성 스킬 연계 시 인(印) 자동 획득 활용",
         ],

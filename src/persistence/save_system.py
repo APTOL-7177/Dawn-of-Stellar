@@ -597,6 +597,9 @@ def serialize_party_member(member: Any) -> Dict[str, Any]:
         "gimmick_state": gimmick_state,
     }
     
+    # 성별 저장
+    result["gender"] = getattr(member, 'gender', 'male')
+
     # 멀티플레이: player_id 저장
     if hasattr(member, 'player_id') and member.player_id:
         result["player_id"] = member.player_id
@@ -814,25 +817,25 @@ def peek_glitch_level() -> int:
     """
     try:
         save_path = get_project_root() / "user_data" / "saves" / "save_single.json"
-        if not save_path.exists():
-            return 0
+        if save_path.exists():
+            with open(save_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
 
-        with open(save_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+            story = data.get("story_system", {})
+            sephiroth_encountered = story.get("sephiroth_encountered", False)
+            sephiroth_defeated = story.get("sephiroth_defeated", False)
+            cain_defeated = story.get("cain_defeated", False)
 
-        story = data.get("story_system", {})
-        sephiroth_encountered = story.get("sephiroth_encountered", False)
-        sephiroth_defeated = story.get("sephiroth_defeated", False)
-        cain_defeated = story.get("cain_defeated", False)
+            if cain_defeated:
+                return 0
+            elif sephiroth_defeated:
+                return 1
+            elif sephiroth_encountered:
+                return 2
 
-        if cain_defeated:
-            return 0
-        elif sephiroth_defeated:
-            return 1
-        elif sephiroth_encountered:
-            return 2
-        else:
-            return 0
+        # 세이브 없거나 글리치 해당 없음 → MetaProgress fallback
+        from src.persistence.meta_progress import get_meta_progress
+        return get_meta_progress().glitch_level
     except Exception:
         return 0
 
@@ -1424,6 +1427,50 @@ def deserialize_gimmick_state(character: Any, gimmick_state: Dict[str, Any]) -> 
             character.last_mp_state = gimmick_state.get("last_mp_state", character.last_mp_state)
 
 
+def _migrate_skill_ids(char: Any, saved_ids: List[str], logger: Any) -> List[str]:
+    """6슬롯 마이그레이션: 구 세이브의 skill_ids(8~9개)를 해당 직업의 정규 6슬롯 + 팀워크 목록으로 정리.
+
+    - 현재 캐릭터의 정규 스킬 목록(character._get_class_skills)이 정답 집합.
+    - 별칭 해석 후 정답 집합에 속하는 저장 id를 정규 순서대로 유지하고,
+      정답 집합에 없는 정규 스킬이 누락되면 보충한다(6슬롯 정책 회피 방지).
+    - deprecated/미지원 id는 별칭으로도 해석 안 되면 드롭 + 로그 1줄.
+    """
+    try:
+        canonical = list(char._get_class_skills(getattr(char, 'character_class', '')))
+    except Exception:
+        return list(saved_ids)
+
+    from src.character.skills.skill_manager import get_skill_manager
+    manager = get_skill_manager()
+
+    # 저장된 id를 별칭 해석해 정규 집합과 대응 (해석 불가/정규 외 id는 드롭)
+    resolved_saved = []
+    unresolved = []
+    canonical_set = set(canonical)
+    for sid in saved_ids:
+        canonical_id = manager.resolve_skill_id(sid)
+        if canonical_id in canonical_set:
+            resolved_saved.append(canonical_id)
+        else:
+            unresolved.append(sid)
+
+    # 정규 순서 기준으로 저장된 id 정렬 + 누락분 보충(6슬롯 정책 회피 방지)
+    ordered: List[str] = [cid for cid in canonical if cid in set(resolved_saved)]
+    missing = [cid for cid in canonical if cid not in set(ordered)]
+    ordered.extend(missing)
+
+    if unresolved or missing:
+        logger.info(
+            f"{getattr(char, 'name', '?')} 6슬롯 마이그레이션: "
+            f"{len(saved_ids)}개 → {len(ordered)}개, 제거: {unresolved}, 보충: {missing}"
+        )
+    # 최종 결과가 비면 스킬 0개 캐릭터가 되므로 canonical 전체로 복구
+    if not ordered:
+        logger.warning("6슬롯 마이그레이션 결과가 비어 canonical 전체로 복구")
+        ordered = list(canonical)
+    return ordered
+
+
 def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     """파티원 역직렬화"""
     from src.character.character import Character
@@ -1445,6 +1492,9 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
         level=member_data["level"]
     )
 
+    # 성별 복원
+    char.gender = member_data.get("gender", "male")
+
     # 스탯 복원
     if member_data.get("stats"):
         char.stat_manager = StatManager.from_dict(member_data["stats"])
@@ -1460,9 +1510,10 @@ def deserialize_party_member(member_data: Dict[str, Any]) -> Any:
     # 경험치 복원
     char.experience = member_data.get("experience", 0)
 
-    # 스킬 ID 복원
+    # 스킬 ID 복원 (6슬롯 마이그레이션: 구 세이브의 8~9개 skill_ids를 정규 6+팀워크로 정리)
     if member_data.get("skill_ids"):
-        char.skill_ids = member_data["skill_ids"]
+        migrated = _migrate_skill_ids(char, member_data["skill_ids"], logger)
+        char.skill_ids = migrated
         char._cached_skills = None  # 캐시 초기화
 
     # 특성 복원

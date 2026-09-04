@@ -287,18 +287,21 @@ class ATBSystem:
         if not self.enabled:
             return
 
-        bullet_time_multiplier = 1.0
-        # 플레이어 턴 중에는 불릿타임 적용 (ATB 증가 속도 감소)
+        # ATB 기본 속도 10배 감소 (동기화 오차 및 체감 속도 조정)
+        atb_base_reduction = 0.1
+
+        bullet_time_multiplier = atb_base_reduction  # 비불릿타임: 0.1 (10배 감소)
+        # 플레이어 턴 중에는 불릿타임 적용 (추가 감소, 기존 절대 속도 유지)
         if is_player_turn:
             difficulty = self.config.get("game.difficulty", "normal")
             if difficulty == "easy":
-                bullet_time_multiplier = 0.003125  # 0.3125%
+                bullet_time_multiplier = atb_base_reduction * 0.03125   # 0.003125 (기존과 동일)
             elif difficulty == "hard":
-                bullet_time_multiplier = 0.0125    # 1.25%
+                bullet_time_multiplier = atb_base_reduction * 0.125     # 0.0125 (기존과 동일)
             elif difficulty == "expert":
-                bullet_time_multiplier = 0.025     # 2.5%
+                bullet_time_multiplier = atb_base_reduction * 0.25      # 0.025 (기존과 동일)
             else:
-                bullet_time_multiplier = 0.00625   # 0.625% (normal 등)
+                bullet_time_multiplier = atb_base_reduction * 0.0625    # 0.00625 (기존과 동일)
 
         # 캐스팅 시스템 가져오기
         from src.combat.casting_system import get_casting_system

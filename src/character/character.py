@@ -41,6 +41,7 @@ class Character:
         self.character_class = character_class
         self.job_id = character_class  # job_id는 character_class의 별칭
         self.level = level
+        self.gender = "male"  # 기본값, PartyMember에서 덮어씀
 
         self.logger = get_logger("character")
 
@@ -148,12 +149,25 @@ class Character:
 
         stats_config = {}
 
+        # YAML stat_growth 키 호환: strength→physical_attack 등
+        _growth_aliases = {
+            "physical_attack": "strength",
+            "physical_defense": "defense",
+            "magic_attack": "magic",
+            "magic_defense": "spirit",
+        }
+
         for yaml_key, stat_enum in stat_mapping.items():
             base_value = base_stats.get(yaml_key, 50)
 
             # 성장률 설정 (linear로 기초 스탯의 일정 %만큼 성장)
+            # YAML에서 yaml_key 또는 별칭(strength 등)으로 조회
+            _alias = _growth_aliases.get(yaml_key)
             if yaml_key in yaml_growth:
                 growth_rate = yaml_growth.get(yaml_key, 0)
+                growth_type = "linear"
+            elif _alias and _alias in yaml_growth:
+                growth_rate = yaml_growth.get(_alias, 0)
                 growth_type = "linear"
             else:
                 if yaml_key == "hp":
@@ -403,7 +417,7 @@ class Character:
             self.max_resonance_sigil = self.gimmick_data.get("max_resonance_sigil", 3)
             self.steel_lock = 0
             self.mana_lock = 0
-            self.default_lock_turns = self.gimmick_data.get("default_lock_turns", 1)
+            self.default_lock_turns = self.gimmick_data.get("default_lock_turns", 2)
             self.circuit_history = []
             self.circuit_flux_ready = 0
 
@@ -632,6 +646,17 @@ class Character:
             self.choice_order = 0  # 질서 선택 카운트 (추가)
             self.choice_chaos = 0  # 혼돈 선택 카운트 (추가)
             self.accumulation_threshold = self.gimmick_data.get("accumulation_threshold", 5)
+            # 전투 시작 시 랜덤 딜레마 선택 적용
+            start_choices = self.gimmick_data.get("start_choices", 0)
+            if start_choices > 0:
+                import random as _random
+                _choice_fields = [
+                    "choice_power", "choice_wisdom", "choice_sacrifice",
+                    "choice_survival", "choice_truth", "choice_lie"
+                ]
+                for _ in range(start_choices):
+                    _field = _random.choice(_choice_fields)
+                    setattr(self, _field, getattr(self, _field, 0) + 1)
 
         # 차원술사 - 확률 왜곡 게이지 (신버전)
         elif gimmick_type == "probability_distortion":
@@ -2358,6 +2383,9 @@ class Character:
             'card_hand', 'card_deck', 'card_discard',
             # 기타
             'aim_points', 'focus_stacks',
+            # 닌자 인법 연쇄 (D1: 전투 중 저장 시 인 보존, t_082c6a99)
+            'seal_fire', 'seal_ice', 'seal_thunder', 'seal_wind',
+            'last_seal_element', 'ninja_stealth', 'max_seals',
         ]
         
         for field in gimmick_fields:

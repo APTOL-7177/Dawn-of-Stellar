@@ -73,6 +73,14 @@ class Skill:
         
         # 메타데이터 기반 조건 체크
         if self.metadata:
+            # 수호자 자세 필수 스킬 체크 (전사)
+            if self.metadata.get("requires_guardian_stance"):
+                current_stance = getattr(user, "current_stance", 0)
+                # 문자열/정수 모두 지원
+                is_guardian = current_stance == 5 or current_stance == "guardian"
+                if not is_guardian:
+                    return False, "수호자 자세에서만 사용 가능합니다"
+
             # 은신 필수 스킬 체크 (도적/암살자 등)
             if self.metadata.get("requires_stealth"):
                 in_stealth = getattr(user, "stealth_active", False)
@@ -293,6 +301,15 @@ class Skill:
                     if refraction_stacks <= 0:
                         return False, f"굴절량 부족 (현재: {refraction_stacks})"
             
+            # 닌자 해인: 인(印) 요구 체크 (D2, t_082c6a99)
+            if self.metadata.get("ninpo_burst") or self.metadata.get("requires_seals"):
+                total_seals = sum(
+                    int(getattr(user, f"seal_{e}", 0) or 0) for e in ("fire", "ice", "thunder", "wind")
+                )
+                required_seals = int(self.metadata.get("requires_seals", 0) or 0)
+                if total_seals < required_seals:
+                    return False, f"인(印) {required_seals}개 이상 필요 (현재: {total_seals})"
+
             # 시간술사: 타임라인 조건 체크
             if hasattr(user, 'gimmick_type') and user.gimmick_type == "timeline_system":
                 if "requires_timeline" in self.metadata:
@@ -395,6 +412,119 @@ class Skill:
         
         return True, ""
 
+    # 실행 시점에만 임시 주입하고 실행 후 반드시 복원할 메타데이터 오버라이드 키
+    # (싱글톤 공유 Skill 인스턴스의 상태 오염 방지, t_83d83e83)
+    _VARIANT_OVERRIDE_KEYS = ("atb_boost", "party_atb_boost", "seal_type", "element")
+
+    def _apply_variant_selection(self, context: Optional[Dict[str, Any]]) -> None:
+        """variants 파생 프리미티브 실행 시점 병합 (t_082c6a99).
+
+        - metadata['_selected_variant'] (또는 variant_default)를 읽어
+          variant_options[key]['metadata_override']를 self.metadata에 병합하고,
+          base damage effect에 element 주입, 변형 전용 효과만 활성화한다.
+        - metadata와 effects는 스킬 단일 인스턴스가 전투 참가자 간 공유되므로
+          변경은 context['_variant_snapshot']에 스냅샷으로 기록하고,
+          execute 종료 시 _restore_variant_state()에서 복원한다(비-mutating, t_83d83e83).
+        """
+        meta = getattr(self, "metadata", None)
+        if not meta or not meta.get("variant_capable"):
+            return
+        options = meta.get("variant_options") or {}
+        if not options:
+            return
+
+        key = meta.get("_selected_variant") or meta.get("variant_default")
+        meta.pop("_selected_variant", None)  # 1회성 선택값 정리
+        if key not in options:
+            key = meta.get("variant_default")
+        if key not in options:
+            return
+
+        entry = options[key]
+
+        # 스냅샷: 실행 후 복원할 이전 값 기록 (오염 방지, t_83d83e83)
+        if context is not None:
+            snapshot = context.setdefault("_variant_snapshot", {})
+            snapshot["_active_variant"] = meta.get("_active_variant")
+            snapshot["_effects"] = [
+                (effect, getattr(effect, "element", None)) for effect in self.effects
+            ]
+
+        meta["_active_variant"] = key
+
+        # 1) metadata_override 병합 (seal_type/element/atb_boost 등) — 스냅샷에 이전값 기록
+        override = entry.get("metadata_override") or {}
+        if context is not None:
+            snapshot = context.setdefault("_variant_snapshot", {})
+            for k in self._VARIANT_OVERRIDE_KEYS:
+                if k in override:
+                    snapshot[k] = meta.get(k)  # 복원용 이전 값 (없으면 None)
+
+        for k, v in override.items():
+            meta[k] = v
+
+        # 2) base damage effect에 element 주입 — 실행 시점에만, 종료 시 복원
+        element = override.get("element")
+        variant_filter = meta.get("_variant_filter") or {}
+        variant_effect_idx = set(variant_filter.get(key, []))
+        if element:
+            for idx, effect in enumerate(self.effects):
+                if idx in variant_effect_idx:
+                    continue  # 변형 전용 효과는 필터 대상
+                if hasattr(effect, "element"):
+                    try:
+                        effect.element = element
+                    except Exception:
+                        pass
+
+        # 3) 실행 허용 인덱스 = base 효과(변형 전용 제외) + 선택 변형 전용 효과
+        if context is not None and variant_filter:
+            all_variant_idx = {i for idxs in variant_filter.values() for i in idxs}
+            allowed = {i for i in range(len(self.effects)) if i not in all_variant_idx}
+            allowed |= variant_effect_idx
+            context["_variant_active_effect_idx"] = allowed
+            context["_variant_label"] = entry.get("label", key)
+
+    def _restore_variant_state(self, context: Optional[Dict[str, Any]]) -> None:
+        """execute 종료(성공/실패 무관) 시 변형 실행 상태를 복원한다 (t_83d83e83).
+
+        - metadata_override 키(atb_boost/seal_type/element 등)를 스냅샷 값으로 복원
+        - damage effect에 주입했던 element를 원래 값으로 복원
+        - _active_variant 제거
+        """
+        if not context:
+            return
+        snapshot = context.pop("_variant_snapshot", None)
+        context.pop("_variant_active_effect_idx", None)
+        context.pop("_variant_label", None)
+        if not snapshot:
+            return
+
+        meta = getattr(self, "metadata", None) or {}
+        # 실행 시점 effective 오버라이드를 context에 남긴다 —
+        # SKILL_EXECUTE 등 execute 종료 후 소비자는 여기서 읽는다 (t_83d83e83)
+        effective = {}
+        for k in self._VARIANT_OVERRIDE_KEYS:
+            if k in meta and k in snapshot:
+                effective[k] = meta[k]
+        if effective and context is not None:
+            context["_variant_meta"] = effective
+
+        for k in self._VARIANT_OVERRIDE_KEYS:
+            if k in snapshot:
+                if snapshot[k] is None:
+                    meta.pop(k, None)
+                else:
+                    meta[k] = snapshot[k]
+        meta.pop("_active_variant", None)
+
+        for effect, original_element in snapshot.get("_effects", []):
+            if hasattr(effect, "element"):
+                try:
+                    effect.element = original_element
+                except Exception:
+                    pass
+
     def execute(self, user: Any, target: Any, context: Optional[Dict[str, Any]] = None) -> SkillResult:
         """스킬 실행"""
         context = context or {}
@@ -405,6 +535,9 @@ class Skill:
                 context["selected_choice"] = self.metadata.get("_selected_choice")
                 if "_selected_choice_name" in self.metadata:
                     context["selected_choice_name"] = self.metadata.get("_selected_choice_name")
+
+            # variants 파생 프리미티브 (t_082c6a99): 선택 변형 적용
+            self._apply_variant_selection(context)
 
             # 부활 스킬인 경우 컨텍스트에 표시 (죽은 대상 타겟팅 허용)
             if self.metadata.get("revival"):
@@ -446,6 +579,15 @@ class Skill:
                 context["_consume_faith_after"] = (consumes_faith, faith_field)
 
         can_use, reason = self.can_use(user, context)
+        # 변형 적용 후 모든 경로(성공/실패)에서 상태 복원 보장 (t_83d83e83)
+        try:
+            result = self._execute_variant_scoped(user, target, context, can_use, reason)
+            return result
+        finally:
+            self._restore_variant_state(context)
+
+    def _execute_variant_scoped(self, user, target, context, can_use, reason) -> SkillResult:
+        """execute 본문 (변형 스코프) — _restore_variant_state 보장 하에 실행."""
         if not can_use:
             return SkillResult(success=False, message=f"사용 불가: {reason}")
 
@@ -592,7 +734,8 @@ class Skill:
                 from src.character.gimmick_updater import GimmickUpdater
                 pre_hook = GimmickUpdater.pre_skill_execution(user, self, target, context)
         except Exception:
-            pass
+            logger = get_logger("skill")
+            logger.warning(f"[기믹 선처리 실패] {getattr(user, 'name', '?')} / {self.name}", exc_info=True)
 
         # 효과 실행 준비 (ISSUE-003: 효과 메시지 수집)
         total_dmg = 0
@@ -685,7 +828,11 @@ class Skill:
                         effect_messages.append(result.message)
         else:
             # 다른 직업은 기존 순서대로 실행
-            for effect in self.effects:
+            variant_active_idx = context.get('_variant_active_effect_idx') if context else None
+            for effect_idx, effect in enumerate(self.effects):
+                # variants 프리미티브: 선택 변형의 전용 효과만 실행 (t_082c6a99)
+                if variant_active_idx is not None and effect_idx not in variant_active_idx:
+                    continue
                 if hasattr(effect, 'execute'):
                     result = effect.execute(user, target, context)
                     if hasattr(result, 'damage_dealt'):
@@ -951,7 +1098,8 @@ class Skill:
                     total_heal += post_result.get("extra_heal", 0)
                     effect_messages.extend(post_result.get("messages", []))
         except Exception:
-            pass
+            logger = get_logger("skill")
+            logger.warning(f"[기믹 후처리 실패] {getattr(user, 'name', '?')} / {self.name}", exc_info=True)
 
         # StackCost 소모 (스킬 효과 실행 후)
         # 검성과 암흑기사는 StackCost를 효과 실행 후에 소모함
