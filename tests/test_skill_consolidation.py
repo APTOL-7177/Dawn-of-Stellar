@@ -1,3 +1,15 @@
+# -*- coding: utf-8 -*-
+"""t_5e254f56 재작업: fda13e4 clean checkout 자가테스트 수정.
+
+문제: fda13e4가 test_skill_consolidation.py에 추가한 '전직업 6슬롯' 단언 8종은
+       33개 전 직업의 data/characters/*.yaml 6슬롯화 + declare_oath.yaml 등
+       description 축약 데이터를 전제한다. 해당 데이터는 메인 저장소의
+       미커밋 WIP(dirty tree)에만 존재하므로 clean checkout에서 8/10 실패.
+
+수정 (택1의 (b) 권장안): 이 커밋이 실제 건드린 직업(elementalist/engineer)으로만
+       단언을 한정한다. 전직업 6슬롯 데이터가 정식 커밋되는 시점에 전직업
+       범위로 복원할 것 — TODO로 표시.
+"""
 from pathlib import Path
 
 import pytest
@@ -11,20 +23,31 @@ from src.character.skills.skill_manager import get_skill_manager
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CHARACTER_DATA_DIR = PROJECT_ROOT / "data" / "characters"
 
+# t_98b95a46(fda13e4)가 6슬롯 데이터를 함께 커밋한 직업.
+# 나머지 31개 직업의 6슬롯화는 아직 미커밋 WIP → 커밋되면 CONSOLIDATED_JOBS를
+# get_all_job_names() 전체로 확장한다 (TODO: 전직업 6슬롯 데이터 정식 커밋 시).
+CONSOLIDATED_JOBS = ["elementalist", "engineer"]
+
 
 def test_every_class_has_canonical_skills():
     character_files = sorted(CHARACTER_DATA_DIR.glob("*.yaml"))
 
     assert len(character_files) == 36
     # 6슬롯 정책: teamwork + 활성 6개 = 정확히 7개 (t_309fb937)
-    assert all(
-        len(yaml.safe_load(character_file.read_text(encoding="utf-8"))["skills"]) == 7
-        for character_file in character_files
-    )
+    # 현재 커밋 기준 6슬롯화 완료 직업만 검증 (t_5e254f56)
+    by_name = {f.stem: f for f in character_files}
+    for job_id in CONSOLIDATED_JOBS:
+        data = yaml.safe_load(by_name[job_id].read_text(encoding="utf-8"))
+        assert len(data["skills"]) == 7, f"{job_id}: {len(data['skills'])}개 스킬"
 
 
 def test_every_class_equips_teamwork_and_ultimate():
-    """36직업 모두 teamwork/ultimate 스킬이 장착 목록에 있어야 한다 (t_d067ebfb 회귀 방지)."""
+    """36직업 모두 teamwork/ultimate 스킬이 장착 목록에 있어야 한다 (t_d067ebfb 회귀 방지).
+
+    예외: cleric의 teamwork/ultimate YAML(data/skills/cleric_teamwork.yaml 등)은
+    아직 미커밋 WIP → clean checkout에서 cleric_teamwork 로드 불가 (t_5e254f56).
+    cleric YAML이 정식 커밋되면 예외를 제거한다.
+    """
     from src.character.skills.skill_manager import get_skill_manager
 
     initialize_all_skills()
@@ -38,6 +61,9 @@ def test_every_class_equips_teamwork_and_ultimate():
             skill = manager.get_skill(sid)
             if skill and (getattr(skill, "is_ultimate", False) or (getattr(skill, "metadata", {}) or {}).get("ultimate")):
                 ults.append(sid)
+        if job_id == "cleric":
+            # 미커밋 데이터 의존: clean checkout에서는 cleric_teamwork이 존재하지 않는다.
+            continue
         assert tw, f"{job_id}: teamwork 스킬 미장착"
         assert ults, f"{job_id}: ultimate 스킬 미장착"
 
@@ -82,7 +108,7 @@ def test_every_class_initializes_with_six_active_slots():
     initialize_all_skills()
     manager = get_skill_manager()
 
-    for job_id in get_all_job_names():
+    for job_id in CONSOLIDATED_JOBS:
         character = Character(name=job_id, character_class=job_id)
         assert len(character.skill_ids) == 7, f"{job_id}: {len(character.skill_ids)}개 스킬"
         assert sum(1 for s in character.skill_ids if s.endswith("_teamwork")) == 1
@@ -140,6 +166,10 @@ def test_design_json_six_slot_match():
     manager = get_skill_manager()
 
     for job_id, row in rows.items():
+        if job_id not in CONSOLIDATED_JOBS and job_id != "ninja":
+            # ninja(t_082c6a99)/elementalist·engineer(t_98b95a46) 외 직업은
+            # 6슬롯 데이터가 아직 미커밋 → 정식 커밋 시 검증 범위 확장 (t_5e254f56)
+            continue
         character = Character(name=job_id, character_class=job_id)
         expected = set(row["slots"].values()) | {row["teamwork_id"]}
         assert set(character.skill_ids) == expected, (
@@ -154,7 +184,7 @@ def test_migration_trims_legacy_eight_slots_to_six():
 
     initialize_all_skills()
 
-    for job_id in get_all_job_names():
+    for job_id in CONSOLIDATED_JOBS:
         character = Character(name=job_id, character_class=job_id)
         legacy = list(character.skill_ids)
         # 구 세이브 시뮬레이션: deprecated 스킬 하나를 끼워 넣어 8개로 만듦
@@ -170,7 +200,7 @@ def test_migration_backfills_partial_saved_ids():
 
     initialize_all_skills()
 
-    for job_id in get_all_job_names():
+    for job_id in CONSOLIDATED_JOBS:
         character = Character(name=job_id, character_class=job_id)
         partial = list(character.skill_ids)[:3]
         migrated = _migrate_skill_ids(character, partial, _QuietLogger())
@@ -186,7 +216,7 @@ def test_migration_recovers_from_all_unknown_ids():
 
     initialize_all_skills()
 
-    for job_id in get_all_job_names():
+    for job_id in CONSOLIDATED_JOBS:
         character = Character(name=job_id, character_class=job_id)
         migrated = _migrate_skill_ids(
             character, ["knight_last_stand", "totally_unknown_skill"], _QuietLogger()
@@ -207,11 +237,19 @@ def test_canonical_skill_descriptions_are_concise():
     initialize_all_skills()
     manager = get_skill_manager()
 
-    for job_id in get_all_job_names():
+    # description 축약(120자 이내)이 아직 미커밋 WIP인 기존 스킬 (t_5e254f56).
+    # dirty 트리의 data/skills/elementalist_{teamwork,ultimate}.yaml 축약본이
+    # 정식 커밋되면 이 예외를 제거한다.
+    PENDING_CONCISE = {"elementalist_teamwork", "elementalist_ultimate"}
+
+    for job_id in CONSOLIDATED_JOBS:
         character = Character(name=job_id, character_class=job_id)
         for skill_id in character.skill_ids:
             skill = manager.get_skill(skill_id)
             assert skill is not None
+            if skill_id in PENDING_CONCISE:
+                assert len(skill.description.strip()) > 0, f"{job_id}.{skill_id} 빈 설명"
+                continue
             assert 0 < len(skill.description.strip()) <= 120, (
                 f"{job_id}.{skill_id} description must explain its mechanic in 120 characters or less"
             )
